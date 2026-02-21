@@ -29,9 +29,6 @@ interface StoryState {
   modificationPhase: ModificationPhase
   modifications: Modification[]
 
-  // ── キーワード抽出中フラグ ──
-  isExtractingKeyword: boolean
-
   // ── 描画 ──
   drawingImageBase64: string | null
   recognizedKeyword: string | null
@@ -52,7 +49,6 @@ interface StoryState {
   endCommentTime: (reason: CommentTimeEndReason) => void
   setCommentTimeRemaining: (ms: number) => void
   setChildUtterance: (utterance: string | null) => void
-  setIsExtractingKeyword: (flag: boolean) => void
   addPendingKeyword: (keyword: ExtractionResult) => void
   selectKeyword: (keyword: ExtractionResult | null) => void
   startModification: () => void
@@ -96,7 +92,6 @@ const initialState = {
   selectedKeyword: null as ExtractionResult | null,
   modificationPhase: 'idle' as ModificationPhase,
   modifications: [] as Modification[],
-  isExtractingKeyword: false,
   drawingImageBase64: null as string | null,
   recognizedKeyword: null as string | null,
   isRecognizingDrawing: false,
@@ -136,7 +131,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   endCommentTime: (reason) => {
-    const { pendingKeywords, isExtractingKeyword } = get()
+    const { pendingKeywords } = get()
     const keyword = pendingKeywords.length > 0 ? pendingKeywords[pendingKeywords.length - 1] : null
 
     set({
@@ -146,17 +141,13 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     })
 
     if (keyword) {
-      // キーワードが抽出されていれば即座に改変開始（確認画面スキップ）
+      // キーワード（発話テキスト）があれば即座に改変開始
       set({ pagePhase: 'modifying' })
     } else if (reason === 'manual_skip') {
       // 明示的スキップ → 次ページへ
       set({ pagePhase: 'transitioning' })
-    } else if (isExtractingKeyword) {
-      // キーワード抽出API呼び出し中 → ローディング表示のまま待機
-      // addPendingKeyword で到着時に modifying へ遷移する
-      set({ pagePhase: 'modifying', modificationPhase: 'orchestrating' })
     } else {
-      // キーワードなし＆抽出中でもない → ボタンに戻す（再挑戦可能）
+      // キーワードなし → ボタンに戻す（再挑戦可能）
       set({ pagePhase: 'readingComplete' })
     }
   },
@@ -169,26 +160,14 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ childUtterance: utterance })
   },
 
-  setIsExtractingKeyword: (flag) => {
-    set({ isExtractingKeyword: flag })
-    // 抽出完了（false）でキーワードなし＆まだ modifying で待機中 → readingComplete にフォールバック
-    if (!flag) {
-      const { pagePhase, selectedKeyword } = get()
-      if (pagePhase === 'modifying' && !selectedKeyword) {
-        set({ pagePhase: 'readingComplete', modificationPhase: 'idle' })
-      }
-    }
-  },
-
   addPendingKeyword: (keyword) => {
     const { pagePhase } = get()
     set((state) => ({
       pendingKeywords: [...state.pendingKeywords, keyword],
-      isExtractingKeyword: false,
     }))
 
-    // コメントタイム終了後に非同期でキーワードが到着した場合 → 即座に改変開始
-    if (pagePhase === 'readingComplete' || pagePhase === 'modifying') {
+    // コメントタイム中 or 終了後にキーワードが到着 → 即座に改変開始
+    if (pagePhase === 'readingComplete' || pagePhase === 'commentTime') {
       set({ selectedKeyword: keyword, pagePhase: 'modifying' })
     }
   },

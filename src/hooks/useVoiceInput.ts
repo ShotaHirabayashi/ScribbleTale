@@ -1,14 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { useCommentTime } from './useCommentTime'
 import { useStoryStore } from '@/stores/story-store'
 import { SpeechRecognitionManager } from '@/lib/speech/speech-recognition'
-import type { ExtractionResult } from '@/lib/types'
 
 interface UseVoiceInputOptions {
-  bookId: string
-  bookTitle: string
   currentPageIndex: number
   pages: { text: string; currentText?: string }[]
   isCommentTimePhase: boolean
@@ -18,80 +15,25 @@ interface UseVoiceInputOptions {
  * 音声入力の統合フック
  *
  * Web Speech API で音声→テキスト変換し、
- * /api/extract-keyword でキーワード抽出→store反映を管理
+ * 確定テキストをそのまま改変エンジンに渡す（キーワード抽出APIは不要）
  */
 export function useVoiceInput({
-  bookTitle,
   currentPageIndex,
   pages,
   isCommentTimePhase,
 }: UseVoiceInputOptions) {
   const addPendingKeyword = useStoryStore((s) => s.addPendingKeyword)
   const setChildUtterance = useStoryStore((s) => s.setChildUtterance)
-  const setIsExtractingKeyword = useStoryStore((s) => s.setIsExtractingKeyword)
 
   const recognitionRef = useRef<SpeechRecognitionManager | null>(null)
   const prevPhaseRef = useRef(false)
-  const extractingRef = useRef(false)
   const finalTranscriptRef = useRef('')
-
-  const currentPageText = pages[currentPageIndex]?.currentText || pages[currentPageIndex]?.text || ''
 
   // コメントタイムタイマー
   const commentTime = useCommentTime({
     maxDurationMs: 30000,
     silenceTimeoutMs: 10000,
   })
-
-  // キーワード抽出（サーバーサイド）
-  const extractKeyword = useCallback(
-    async (utterance: string) => {
-      if (extractingRef.current || !utterance.trim()) return
-      extractingRef.current = true
-      setIsExtractingKeyword(true)
-
-      try {
-        console.log('[useVoiceInput] Extracting keyword from:', utterance)
-        const res = await fetch('/api/extract-keyword', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            utterance,
-            bookTitle,
-            currentPageText,
-          }),
-        })
-
-        if (!res.ok) {
-          console.warn('[useVoiceInput] Keyword extraction failed:', res.status)
-          setIsExtractingKeyword(false)
-          return
-        }
-
-        const data = await res.json()
-        if (data.keyword) {
-          console.log('[useVoiceInput] Keyword extracted:', data.keyword)
-          const extraction: ExtractionResult = {
-            keyword: data.keyword,
-            childUtterance: utterance,
-            trigger: 'voice',
-            timestamp: Date.now(),
-          }
-          addPendingKeyword(extraction)
-          setChildUtterance(utterance)
-        } else {
-          // キーワードなし → フラグ解除（readingCompleteへフォールバック）
-          setIsExtractingKeyword(false)
-        }
-      } catch (err) {
-        console.error('[useVoiceInput] Extraction error:', err)
-        setIsExtractingKeyword(false)
-      } finally {
-        extractingRef.current = false
-      }
-    },
-    [bookTitle, currentPageText, addPendingKeyword, setChildUtterance, setIsExtractingKeyword]
-  )
 
   // コメントタイムフェーズ開始/終了で音声認識を制御
   useEffect(() => {
@@ -115,8 +57,15 @@ export function useVoiceInput({
 
           if (isFinal && transcript.trim()) {
             finalTranscriptRef.current = transcript.trim()
-            // 確定テキストをキーワード抽出に送る
-            extractKeyword(transcript.trim())
+            console.log('[useVoiceInput] Final transcript:', transcript.trim())
+
+            // 発話テキストをそのままキーワード＆発話として即座にストアに登録
+            addPendingKeyword({
+              keyword: transcript.trim(),
+              childUtterance: transcript.trim(),
+              trigger: 'voice',
+              timestamp: Date.now(),
+            })
           }
         },
         onError: (error) => {
@@ -152,7 +101,7 @@ export function useVoiceInput({
   }, [])
 
   return {
-    isConnected: true, // Web Speech APIは常に利用可能
+    isConnected: true,
     isStreaming: isCommentTimePhase,
     hasPermission: SpeechRecognitionManager.isSupported(),
     error: null,

@@ -91,8 +91,6 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
-    bookId: bookId || story.id,
-    bookTitle: story.title,
     currentPageIndex: currentPage,
     pages: displayPages,
     isCommentTimePhase: !readOnly && pagePhase === 'commentTime',

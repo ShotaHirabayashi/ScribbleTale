@@ -1,14 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 const validBookIds = ['momotaro', 'akazukin']
 
 export default function BookEntryPage({ params }: { params: Promise<{ bookId: string }> }) {
   const router = useRouter()
+  const initRef = useRef(false)
 
   useEffect(() => {
+    if (initRef.current) return
+    initRef.current = true
+
     params.then(({ bookId }) => {
       if (!validBookIds.includes(bookId)) {
         router.replace('/')
@@ -20,7 +24,6 @@ export default function BookEntryPage({ params }: { params: Promise<{ bookId: st
         createStorySession(bookId).then((sessionId) => {
           router.replace(`/book/${bookId}/${sessionId}`)
         }).catch(() => {
-          // Firestore失敗時はランダムID
           const fallbackId = `local-${Date.now()}`
           router.replace(`/book/${bookId}/${fallbackId}`)
         })
