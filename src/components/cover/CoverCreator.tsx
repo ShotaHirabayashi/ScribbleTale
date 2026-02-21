@@ -104,6 +104,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={30}
               placeholder={story.title}
               className="rounded-xl border-2 border-border bg-card px-4 py-3 font-serif text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary"
             />
@@ -119,6 +120,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
               type="text"
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
+              maxLength={15}
               placeholder="なまえを いれてね"
               className="rounded-xl border-2 border-border bg-card px-4 py-3 font-serif text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary"
             />

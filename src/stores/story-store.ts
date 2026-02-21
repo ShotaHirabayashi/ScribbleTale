@@ -286,7 +286,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   shareStory: async () => {
-    const { bookId, pages, modifications, shareToken: existingToken, isSharing } = get()
+    const { bookId, pages, modifications, shareToken: existingToken, isSharing, storySessionId } = get()
     if (isSharing) return existingToken
     if (existingToken) return existingToken
 
@@ -294,16 +294,49 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
     set({ isSharing: true })
     try {
-      // illustration (base64 data URI) を除外してペイロードを軽量化
-      const lightPages = pages.map(({ illustration, ...rest }) => rest)
+      const storyId = storySessionId || `story-${bookId}-${Date.now()}`
+
+      // data: URI の改変画像を Firebase Storage にアップロードし URL に差し替え
+      const { uploadImage, getStoryImagePath } = await import('@/lib/firebase/storage')
+      const uploadedPages = await Promise.all(
+        pages.map(async (page, index) => {
+          if (page.illustration && page.illustration.startsWith('data:')) {
+            try {
+              // data:image/png;base64,XXXX → base64 部分を抽出
+              const base64Data = page.illustration.split(',')[1]
+              if (!base64Data) return page
+
+              const mimeMatch = page.illustration.match(/^data:(image\/\w+);/)
+              const mimeType = mimeMatch?.[1] || 'image/png'
+
+              const path = getStoryImagePath(storyId, index)
+              const downloadUrl = await uploadImage(path, base64Data, mimeType)
+              return { ...page, illustration: downloadUrl }
+            } catch (err) {
+              console.warn(`[story-store] Image upload failed for page ${index}:`, err)
+              return page
+            }
+          }
+          return page
+        })
+      )
+
       const res = await fetch('/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookId, pages: lightPages, modifications }),
+        body: JSON.stringify({
+          storyId,
+          bookId,
+          pages: uploadedPages,
+          modifications,
+        }),
       })
       if (!res.ok) throw new Error('Share failed')
       const data = await res.json()
+
+      // アップロード済み URL をローカル pages にも反映
       set({
+        pages: uploadedPages,
         shareToken: data.shareToken,
         isShared: true,
         isSharing: false,
