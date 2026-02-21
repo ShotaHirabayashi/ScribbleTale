@@ -38,10 +38,13 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
     commentTimeRemainingMs,
     childUtterance,
     pages: storePages,
+    selectedKeyword,
     handleReadingComplete,
     handleStartCommentTime,
     handleEndCommentTime,
     handleSkipCommentTime,
+    handleConfirmModification,
+    handleCancelConfirmation,
   } = useStory(bookId || story.id, story.pages)
 
   const syncPageIndex = useStoryStore((s) => s.syncPageIndex)
@@ -70,9 +73,19 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
   })
 
   const startDrawing = useStoryStore((s) => s.startDrawing)
+  const confirmDrawing = useStoryStore((s) => s.confirmDrawing)
+  const rejectDrawing = useStoryStore((s) => s.rejectDrawing)
+  const recognizedKeyword = useStoryStore((s) => s.recognizedKeyword)
+  const drawingImageBase64 = useStoryStore((s) => s.drawingImageBase64)
   const handleStartDrawing = useCallback(() => {
     startDrawing()
   }, [startDrawing])
+  const handleDrawingConfirm = useCallback(() => {
+    confirmDrawing()
+  }, [confirmDrawing])
+  const handleDrawingReject = useCallback(() => {
+    rejectDrawing()
+  }, [rejectDrawing])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
@@ -132,8 +145,8 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      // drawing フェーズ中はスワイプ無効
-      if (pagePhase === 'drawing') return
+      // drawing / drawingConfirm / confirming フェーズ中はスワイプ無効
+      if (pagePhase === 'drawing' || pagePhase === 'drawingConfirm' || pagePhase === 'confirming') return
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
       const deltaY = e.changedTouches[0].clientY - touchStartY.current
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
@@ -260,6 +273,14 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
                     onStartDrawing={isPageActive && !readOnly ? handleStartDrawing : undefined}
                     onDrawingComplete={isPageActive && !readOnly ? handleDrawingComplete : undefined}
                     onDrawingCancel={isPageActive && !readOnly ? handleDrawingCancel : undefined}
+                    onDrawingConfirm={isPageActive && !readOnly ? handleDrawingConfirm : undefined}
+                    onDrawingReject={isPageActive && !readOnly ? handleDrawingReject : undefined}
+                    onConfirmModification={isPageActive && !readOnly ? handleConfirmModification : undefined}
+                    onCancelConfirmation={isPageActive && !readOnly ? handleCancelConfirmation : undefined}
+                    selectedKeyword={isPageActive && !readOnly ? selectedKeyword?.keyword ?? null : undefined}
+                    selectedUtterance={isPageActive && !readOnly ? childUtterance : undefined}
+                    recognizedKeyword={isPageActive && !readOnly ? recognizedKeyword : undefined}
+                    drawingImageBase64={isPageActive && !readOnly ? drawingImageBase64 : undefined}
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/5 to-transparent" />

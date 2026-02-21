@@ -50,7 +50,7 @@ export interface SavedBook {
 // ── 新規型（Phase 0〜） ──
 
 /** ページのライフサイクルフェーズ */
-export type PagePhase = 'reading' | 'readingComplete' | 'commentTime' | 'drawing' | 'modifying' | 'modified' | 'transitioning'
+export type PagePhase = 'reading' | 'readingComplete' | 'commentTime' | 'drawing' | 'drawingConfirm' | 'confirming' | 'modifying' | 'modified' | 'transitioning'
 
 /** 改変処理のフェーズ */
 export type ModificationPhase = 'idle' | 'orchestrating' | 'generating_image' | 'complete'

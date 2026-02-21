@@ -115,6 +115,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
           modifications,
           title: finalTitle,
           authorName: finalAuthor,
+          coverImage: generatedCoverImage || story.coverImage,
           bgColor,
           frameStyle,
         }),

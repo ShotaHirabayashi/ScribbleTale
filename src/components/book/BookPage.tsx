@@ -6,6 +6,8 @@ import { CommentTimeButton } from './CommentTimeButton'
 import { CommentTimeOverlay } from './CommentTimeOverlay'
 import { ModificationLoading } from './ModificationLoading'
 import { DrawingOverlay } from './DrawingOverlay'
+import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
+import { ConfirmationOverlay } from './ConfirmationOverlay'
 import type { StoryPage } from '@/lib/types'
 import type { PagePhase, ModificationPhase } from '@/lib/types'
 
@@ -26,6 +28,14 @@ interface BookPageProps {
   onStartDrawing?: () => void
   onDrawingComplete?: (imageBase64: string) => void
   onDrawingCancel?: () => void
+  onDrawingConfirm?: () => void
+  onDrawingReject?: () => void
+  onConfirmModification?: () => void
+  onCancelConfirmation?: () => void
+  selectedKeyword?: string | null
+  selectedUtterance?: string | null
+  recognizedKeyword?: string | null
+  drawingImageBase64?: string | null
 }
 
 export function BookPage({
@@ -45,6 +55,14 @@ export function BookPage({
   onStartDrawing,
   onDrawingComplete,
   onDrawingCancel,
+  onDrawingConfirm,
+  onDrawingReject,
+  onConfirmModification,
+  onCancelConfirmation,
+  selectedKeyword,
+  selectedUtterance,
+  recognizedKeyword,
+  drawingImageBase64,
 }: BookPageProps) {
   // 表示するテキスト（改変済みの場合はcurrentTextを使用）
   const displayText = page.currentText || page.text
@@ -142,6 +160,24 @@ export function BookPage({
             <DrawingOverlay
               onComplete={onDrawingComplete}
               onCancel={onDrawingCancel}
+            />
+          )}
+
+          {pagePhase === 'drawingConfirm' && onDrawingConfirm && onDrawingReject && recognizedKeyword && drawingImageBase64 && (
+            <DrawingConfirmOverlay
+              keyword={recognizedKeyword}
+              drawingImageBase64={drawingImageBase64}
+              onConfirm={onDrawingConfirm}
+              onReject={onDrawingReject}
+            />
+          )}
+
+          {pagePhase === 'confirming' && onConfirmModification && onCancelConfirmation && selectedKeyword && (
+            <ConfirmationOverlay
+              keyword={selectedKeyword}
+              utterance={selectedUtterance ?? null}
+              onConfirm={onConfirmModification}
+              onCancel={onCancelConfirmation}
             />
           )}
 

@@ -18,6 +18,7 @@ interface SharedStoryItem {
   updatedAt: unknown
   title?: string
   authorName?: string
+  coverImage?: string
   bgColor?: string
   frameStyle?: string
 }

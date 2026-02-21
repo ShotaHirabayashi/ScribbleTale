@@ -68,7 +68,7 @@ async function firestoreSet(collection: string, docId: string, data: Record<stri
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { storyId, bookId, pages, modifications, title, authorName, bgColor, frameStyle } = body
+    const { storyId, bookId, pages, modifications, title, authorName, coverImage, bgColor, frameStyle } = body
 
     if (!bookId || !pages) {
       return NextResponse.json(
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
       }
       if (title) storyData.title = title
       if (authorName) storyData.authorName = authorName
+      if (coverImage) storyData.coverImage = coverImage
       if (bgColor) storyData.bgColor = bgColor
       if (frameStyle) storyData.frameStyle = frameStyle
 

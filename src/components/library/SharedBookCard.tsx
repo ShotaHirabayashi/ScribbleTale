@@ -24,6 +24,7 @@ interface SharedBookCardProps {
     updatedAt: unknown
     title?: string
     authorName?: string
+    coverImage?: string
     bgColor?: string
     frameStyle?: string
   }
@@ -34,8 +35,8 @@ export function SharedBookCard({ story, index }: SharedBookCardProps) {
   const title = story.title || BOOK_TITLES[story.bookId] || story.bookId
   const bgColor = story.bgColor || BOOK_COLORS[story.bookId] || "#f0ead6"
 
-  // カバー画像: 1ページ目（カバー）のillustration
-  const coverImage = story.pages[0]?.illustration || `/images/${story.bookId}-cover.jpg`
+  // カバー画像: Firestoreのcoverimage > 1ページ目のillustration > デフォルト
+  const coverImage = story.coverImage || story.pages[0]?.illustration || `/images/${story.bookId}-cover.jpg`
 
   // 改変数
   const modCount = story.modifications?.length ?? 0

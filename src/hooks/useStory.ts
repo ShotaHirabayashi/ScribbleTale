@@ -57,6 +57,16 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
     store.skipCommentTime()
   }, [store])
 
+  /** 確認オーバーレイ: 改変を承認 */
+  const handleConfirmModification = useCallback(() => {
+    store.confirmModification()
+  }, [store])
+
+  /** 確認オーバーレイ: キャンセル */
+  const handleCancelConfirmation = useCallback(() => {
+    store.cancelConfirmation()
+  }, [store])
+
   // コメントタイム終了 → 改変フロー起動
   useEffect(() => {
     if (
@@ -132,7 +142,9 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           )
         } catch (error) {
           console.error('[useStory] Modification failed:', error)
-          store.setPagePhase('transitioning')
+          // エラー時は readingComplete に戻す（transitioning にすると次ページに進んでしまう）
+          store.setModificationPhase('idle')
+          store.setPagePhase('readingComplete')
         } finally {
           modificationInProgressRef.current = false
         }
@@ -206,5 +218,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
     handleStartCommentTime,
     handleEndCommentTime,
     handleSkipCommentTime,
+    handleConfirmModification,
+    handleCancelConfirmation,
   }
 }

@@ -31,6 +31,7 @@ interface StoryState {
 
   // ── 描画 ──
   drawingImageBase64: string | null
+  recognizedKeyword: string | null
 
   // ── 共有 ──
   shareToken: string | null
@@ -59,6 +60,11 @@ interface StoryState {
   ) => void
   startDrawing: () => void
   setDrawingImage: (base64: string | null) => void
+  setRecognizedKeyword: (keyword: string | null) => void
+  confirmDrawing: () => void
+  rejectDrawing: () => void
+  confirmModification: () => void
+  cancelConfirmation: () => void
   skipCommentTime: () => void
   goToNextPage: () => void
   goToPrevPage: () => void
@@ -83,6 +89,7 @@ const initialState = {
   modificationPhase: 'idle' as ModificationPhase,
   modifications: [] as Modification[],
   drawingImageBase64: null as string | null,
+  recognizedKeyword: null as string | null,
   shareToken: null as string | null,
   isShared: false,
   isSharing: false,
@@ -127,11 +134,11 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: keyword,
     })
 
-    // キーワードが抽出されていれば改変フェーズへ、なければ次ページへ
+    // キーワードが抽出されていれば確認フェーズへ、なければ現ページに留まる
     if (keyword) {
-      set({ pagePhase: 'modifying' })
+      set({ pagePhase: 'confirming' })
     } else {
-      set({ pagePhase: 'transitioning' })
+      set({ pagePhase: 'readingComplete' })
     }
   },
 
@@ -219,11 +226,56 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: null,
       childUtterance: null,
       drawingImageBase64: null,
+      recognizedKeyword: null,
     })
   },
 
   setDrawingImage: (base64) => {
     set({ drawingImageBase64: base64 })
+  },
+
+  setRecognizedKeyword: (keyword) => {
+    set({ recognizedKeyword: keyword })
+  },
+
+  confirmDrawing: () => {
+    const { recognizedKeyword } = get()
+    if (!recognizedKeyword) return
+
+    const extractionResult = {
+      keyword: recognizedKeyword,
+      childUtterance: `おえかき: ${recognizedKeyword}`,
+      trigger: 'drawing' as const,
+      timestamp: Date.now(),
+    }
+
+    set((state) => ({
+      pendingKeywords: [...state.pendingKeywords, extractionResult],
+      selectedKeyword: extractionResult,
+      pagePhase: 'modifying',
+    }))
+  },
+
+  rejectDrawing: () => {
+    set({
+      pagePhase: 'drawing',
+      pendingKeywords: [],
+      selectedKeyword: null,
+      childUtterance: null,
+      drawingImageBase64: null,
+      recognizedKeyword: null,
+    })
+  },
+
+  confirmModification: () => {
+    set({ pagePhase: 'modifying' })
+  },
+
+  cancelConfirmation: () => {
+    set({
+      selectedKeyword: null,
+      pagePhase: 'readingComplete',
+    })
   },
 
   skipCommentTime: () => {
