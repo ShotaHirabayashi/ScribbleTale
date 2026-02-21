@@ -145,27 +145,35 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     saveBook(book)
 
     // Firestore に保存（/library ページ用）
+    const isExistingSession = !!storySessionId
     try {
+      const shareBody: Record<string, unknown> = {
+        storyId,
+        bookId: story.id,
+        existingSession: isExistingSession,
+        title: finalTitle,
+        authorName: finalAuthor,
+        coverImage: finalCoverImage,
+        bgColor,
+        frameStyle,
+      }
+      // 新規セッションの場合のみ pages と modifications を送信
+      if (!isExistingSession) {
+        shareBody.pages = uploadedPages
+        shareBody.modifications = modifications
+      }
+
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storyId,
-          bookId: story.id,
-          pages: uploadedPages,
-          modifications,
-          title: finalTitle,
-          authorName: finalAuthor,
-          coverImage: finalCoverImage,
-          bgColor,
-          frameStyle,
-        }),
+        body: JSON.stringify(shareBody),
       })
       if (!res.ok) {
-        console.warn("[CoverCreator] Firestore save failed:", res.status)
+        const errData = await res.json().catch(() => ({}))
+        console.error("[CoverCreator] Firestore save failed:", res.status, errData)
       }
     } catch (err) {
-      console.warn("[CoverCreator] Firestore save error:", err)
+      console.error("[CoverCreator] Firestore save error:", err)
     }
 
     setTimeout(() => {

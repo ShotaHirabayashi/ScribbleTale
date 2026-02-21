@@ -65,14 +65,42 @@ async function firestoreSet(collection: string, docId: string, data: Record<stri
   }
 }
 
+/** Firestore REST API で指定フィールドのみ部分更新（updateMask使用） */
+async function firestorePatch(collection: string, docId: string, data: Record<string, unknown>) {
+  const now = new Date().toISOString()
+  const fields: Record<string, unknown> = {}
+  const fieldPaths: string[] = []
+
+  for (const [key, val] of Object.entries(data)) {
+    if (val !== undefined) {
+      fields[key] = toFirestoreValue(val)
+      fieldPaths.push(key)
+    }
+  }
+  fields.updatedAt = { timestampValue: now }
+  fieldPaths.push('updatedAt')
+
+  const maskParams = fieldPaths.map(f => `updateMask.fieldPaths=${f}`).join('&')
+  const url = `${FIRESTORE_BASE}/${collection}/${docId}?${maskParams}`
+  const patchRes = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  })
+  if (!patchRes.ok) {
+    const err = await patchRes.text()
+    throw new Error(`Firestore PATCH (partial) failed: ${patchRes.status} ${err}`)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { storyId, bookId, pages, modifications, title, authorName, coverImage, bgColor, frameStyle } = body
+    const { storyId, bookId, pages, modifications, title, authorName, coverImage, bgColor, frameStyle, existingSession } = body
 
-    if (!bookId || !pages) {
+    if (!bookId) {
       return NextResponse.json(
-        { error: 'bookId and pages are required' },
+        { error: 'bookId is required' },
         { status: 400 }
       )
     }
@@ -82,20 +110,43 @@ export async function POST(request: NextRequest) {
 
     // Firestore REST API でストーリーを保存
     try {
-      const storyData: Record<string, unknown> = {
-        bookId,
-        shareToken,
-        isShared: true,
-        pages,
-        modifications: modifications || [],
-      }
-      if (title) storyData.title = title
-      if (authorName) storyData.authorName = authorName
-      if (coverImage) storyData.coverImage = coverImage
-      if (bgColor) storyData.bgColor = bgColor
-      if (frameStyle) storyData.frameStyle = frameStyle
+      if (existingSession && storyId) {
+        // 既存セッション: メタデータのみ部分更新（pages は自動保存済み）
+        const metaData: Record<string, unknown> = {
+          bookId,
+          shareToken,
+          isShared: true,
+        }
+        if (title) metaData.title = title
+        if (authorName) metaData.authorName = authorName
+        if (coverImage) metaData.coverImage = coverImage
+        if (bgColor) metaData.bgColor = bgColor
+        if (frameStyle) metaData.frameStyle = frameStyle
 
-      await firestoreSet('stories', generatedStoryId, storyData)
+        await firestorePatch('stories', generatedStoryId, metaData)
+      } else {
+        // 新規: 全フィールド保存
+        if (!pages) {
+          return NextResponse.json(
+            { error: 'pages are required for new session' },
+            { status: 400 }
+          )
+        }
+        const storyData: Record<string, unknown> = {
+          bookId,
+          shareToken,
+          isShared: true,
+          pages,
+          modifications: modifications || [],
+        }
+        if (title) storyData.title = title
+        if (authorName) storyData.authorName = authorName
+        if (coverImage) storyData.coverImage = coverImage
+        if (bgColor) storyData.bgColor = bgColor
+        if (frameStyle) storyData.frameStyle = frameStyle
+
+        await firestoreSet('stories', generatedStoryId, storyData)
+      }
 
       // 逆引きインデックス
       await firestoreSet('shareTokens', shareToken, {
@@ -103,6 +154,10 @@ export async function POST(request: NextRequest) {
       })
     } catch (err) {
       console.error('[share] Firestore save failed:', err)
+      return NextResponse.json(
+        { error: 'Firestore save failed', details: String(err) },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
