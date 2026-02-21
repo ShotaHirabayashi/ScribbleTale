@@ -11,7 +11,7 @@ interface CoverPreviewProps {
   frameStyle: FrameStyle
 }
 
-function FrameDecoration({ style }: { style: FrameStyle }) {
+export function FrameDecoration({ style }: { style: FrameStyle }) {
   const base = "absolute pointer-events-none"
 
   switch (style) {

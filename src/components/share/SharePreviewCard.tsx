@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import type { SavedBook } from "@/lib/types"
+import { FrameDecoration } from "@/components/cover/CoverPreview"
 
 interface SharePreviewCardProps {
   book: SavedBook
@@ -20,6 +21,8 @@ export function SharePreviewCard({ book }: SharePreviewCardProps) {
           className="relative mx-4 mt-4 aspect-[3/4] overflow-hidden rounded-xl"
           style={{ backgroundColor: book.bgColor }}
         >
+          <FrameDecoration style={book.frameStyle} />
+
           {/* Cover image */}
           <div className="relative mx-auto mt-4 aspect-square w-4/5 overflow-hidden rounded-lg shadow-md">
             <Image

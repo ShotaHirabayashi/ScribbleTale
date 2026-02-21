@@ -94,6 +94,7 @@ export function BookPage({
           <StoryText
             text={displayText}
             isActive={isActive}
+            skipAnimation={page.textRevealed}
             className="text-center text-sm text-[var(--storybook-brown)] sm:text-base md:text-lg"
             onComplete={onReadingComplete}
           />
@@ -119,6 +120,7 @@ export function BookPage({
         <StoryText
           text={displayText}
           isActive={isActive}
+          skipAnimation={page.textRevealed}
           className="text-sm text-[var(--storybook-brown)] sm:text-base md:text-lg"
           onComplete={onReadingComplete}
         />

@@ -63,6 +63,7 @@ interface StoryState {
   goToNextPage: () => void
   goToPrevPage: () => void
   syncPageIndex: (index: number) => void
+  markTextRevealed: (pageIndex: number) => void
   clearContextRegenerationFlag: (pageIndex: number) => void
   resetSession: () => void
   shareStory: () => Promise<string | null>
@@ -173,6 +174,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
           currentText: newText,
           isModified: true,
           modificationCount: prevCount + 1,
+          textRevealed: false,
           ...(newIllustration ? { illustration: newIllustration } : {}),
         }
 
@@ -265,6 +267,19 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: null,
       childUtterance: null,
       drawingImageBase64: null,
+    })
+  },
+
+  markTextRevealed: (pageIndex) => {
+    set((state) => {
+      const newPages = [...state.pages]
+      if (pageIndex >= 0 && pageIndex < newPages.length) {
+        newPages[pageIndex] = {
+          ...newPages[pageIndex],
+          textRevealed: true,
+        }
+      }
+      return { pages: newPages }
     })
   },
 

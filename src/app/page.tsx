@@ -5,6 +5,7 @@ import { ExperienceSection } from "@/components/top/ExperienceSection"
 import { ParentInfoSection } from "@/components/top/ParentInfoSection"
 import { BookSelector } from "@/components/book/BookSelector"
 import { ScrollToBooksFab } from "@/components/top/ScrollToBooksFab"
+import { BookshelfSection } from "@/components/top/BookshelfSection"
 import { Footer } from "@/components/top/Footer"
 
 export default function HomePage() {
@@ -64,6 +65,21 @@ export default function HomePage() {
 
         {/* Book selection section - at the bottom */}
         <BookSelector />
+
+        {/* Divider */}
+        <div className="flex items-center justify-center py-2" aria-hidden="true">
+          <svg width="200" height="12" viewBox="0 0 200 12" fill="none" className="text-border">
+            <path
+              d="M0 6C8 6 8 2 16 2s8 4 16 4 8-4 16-4 8 4 16 4 8-4 16-4 8 4 16 4 8-4 16-4 8 4 16 4 8-4 16-4 8 4 16 4 8-4 16-4 8 4 16 4S200 6 200 6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        {/* Bookshelf link */}
+        <BookshelfSection />
       </main>
 
       {/* Floating button to scroll to book selection */}

@@ -6,10 +6,11 @@ interface StoryTextProps {
   text: string
   isActive: boolean
   className?: string
+  skipAnimation?: boolean
   onComplete?: () => void
 }
 
-export function StoryText({ text, isActive, className = '', onComplete }: StoryTextProps) {
+export function StoryText({ text, isActive, className = '', skipAnimation = false, onComplete }: StoryTextProps) {
   const [visibleChars, setVisibleChars] = useState(0)
   const onCompleteCalledRef = useRef(false)
 
@@ -20,6 +21,15 @@ export function StoryText({ text, isActive, className = '', onComplete }: StoryT
     if (!isActive) {
       setVisibleChars(0)
       onCompleteCalledRef.current = false
+      return
+    }
+
+    if (skipAnimation) {
+      setVisibleChars(text.length)
+      if (!onCompleteCalledRef.current) {
+        onCompleteCalledRef.current = true
+        onCompleteRef.current?.()
+      }
       return
     }
 
@@ -41,7 +51,7 @@ export function StoryText({ text, isActive, className = '', onComplete }: StoryT
     }, 50)
 
     return () => clearInterval(timer)
-  }, [isActive, text])
+  }, [isActive, text, skipAnimation])
 
   const lines = text.split('\n')
   let charCount = 0

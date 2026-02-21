@@ -23,6 +23,8 @@ export interface StoryPage {
   modificationCount?: number
   /** 前のページの改変を反映して再生成が必要か */
   needsContextRegeneration?: boolean
+  /** テキストアニメーション完了済み（既読） */
+  textRevealed?: boolean
 }
 
 export interface Story {

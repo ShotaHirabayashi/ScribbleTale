@@ -25,6 +25,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
   /** テキスト文字送り完了時のハンドラ */
   const handleReadingComplete = useCallback(() => {
     if (store.pagePhase === 'reading') {
+      store.markTextRevealed(store.currentPageIndex)
       const currentPage = store.pages[store.currentPageIndex]
       const modCount = currentPage?.modificationCount ?? 0
       if (modCount >= 2) {
@@ -36,6 +37,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
     }
     if (store.pagePhase === 'modified') {
       // 改変テキスト文字送り完了 → 自動でページ遷移
+      store.markTextRevealed(store.currentPageIndex)
       store.setPagePhase('transitioning')
     }
   }, [store])
