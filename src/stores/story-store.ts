@@ -294,10 +294,12 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
     set({ isSharing: true })
     try {
+      // illustration (base64 data URI) を除外してペイロードを軽量化
+      const lightPages = pages.map(({ illustration, ...rest }) => rest)
       const res = await fetch('/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookId, pages, modifications }),
+        body: JSON.stringify({ bookId, pages: lightPages, modifications }),
       })
       if (!res.ok) throw new Error('Share failed')
       const data = await res.json()

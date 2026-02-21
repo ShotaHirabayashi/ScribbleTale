@@ -71,6 +71,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           const bookTitle = store.bookId === 'momotaro' ? 'ももたろう' : 'あかずきん'
 
           // サーバーサイドAPIルート経由で改変 + オーケストレーション
+          // illustration (base64 data URI) を除外してペイロードを軽量化
+          const lightPages = store.pages.map(({ illustration, ...rest }) => rest)
           const response = await fetch('/api/modify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -79,7 +81,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
               bookTitle,
               keyword: store.selectedKeyword!.keyword,
               currentPageIndex: store.currentPageIndex,
-              pages: store.pages,
+              pages: lightPages,
               trigger: store.selectedKeyword!.trigger,
             }),
           })
@@ -156,13 +158,15 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           const bookTitle = store.bookId === 'momotaro' ? 'ももたろう' : 'あかずきん'
 
           // サーバーサイドAPIルート経由で波及再生成
+          // illustration を除外してペイロードを軽量化
+          const lightPages = store.pages.map(({ illustration, ...rest }) => rest)
           const response = await fetch('/api/regenerate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               bookTitle,
               currentPageIndex: store.currentPageIndex,
-              pages: store.pages,
+              pages: lightPages,
             }),
           })
 
