@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { CoverPreview } from "./CoverPreview"
-import { saveBook } from "@/lib/data/saved-books"
 import { useStoryStore } from "@/stores/story-store"
 import { BookOpen, Sparkles, Wand2 } from "lucide-react"
 import { buildCoverImagePrompt } from "@/lib/gemini/prompts"
@@ -86,8 +85,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
 
     const finalTitle = title.trim() || story.title
     const finalAuthor = authorName.trim()
-    const bookId = `book-${Date.now()}`
-    const storyId = storySessionId || bookId
+    const storyId = storySessionId || `story-${Date.now()}`
 
     // Base64画像を Firebase Storage にアップロードして URL に差し替え
     const { uploadImage, getStoryImagePath } = await import("@/lib/firebase/storage")
@@ -130,22 +128,9 @@ export function CoverCreator({ story }: CoverCreatorProps) {
       }
     }
 
-    const book = {
-      id: bookId,
-      storyId: story.id,
-      title: finalTitle,
-      authorName: finalAuthor,
-      coverImage: finalCoverImage,
-      bgColor,
-      frameStyle,
-      createdAt: new Date().toISOString(),
-    }
-
-    // localStorage に保存（/share/[id] ページ用）
-    saveBook(book)
-
     // Firestore に保存（/library ページ用）
     const isExistingSession = !!storySessionId
+    let shareToken: string | undefined
     try {
       const shareBody: Record<string, unknown> = {
         storyId,
@@ -165,7 +150,10 @@ export function CoverCreator({ story }: CoverCreatorProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(shareBody),
       })
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json()
+        shareToken = data.shareToken
+      } else {
         const errData = await res.json().catch(() => ({}))
         console.error("[CoverCreator] Firestore save failed:", res.status, errData)
       }
@@ -173,9 +161,14 @@ export function CoverCreator({ story }: CoverCreatorProps) {
       console.error("[CoverCreator] Firestore save error:", err)
     }
 
-    setTimeout(() => {
-      router.push(`/share/${book.id}`)
-    }, 600)
+    // 共有ビューアに直接遷移
+    if (shareToken) {
+      setTimeout(() => {
+        router.push(`/story/${shareToken}`)
+      }, 600)
+    } else {
+      setIsSaving(false)
+    }
   }, [authorName, bgColor, frameStyle, router, story, title, storySessionId, pages, modifications, generatedCoverImage])
 
   return (

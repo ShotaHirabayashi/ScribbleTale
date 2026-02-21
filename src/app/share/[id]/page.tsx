@@ -82,7 +82,7 @@ export default function SharePage() {
           style={{ animationDelay: "400ms" }}
         >
           <Link
-            href={`/book/${book.storyId}`}
+            href={book.shareToken ? `/story/${book.shareToken}` : `/book/${book.storyId}`}
             className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-serif text-sm font-bold text-primary-foreground shadow-md transition-all hover:scale-105 hover:shadow-lg active:scale-95"
           >
             <BookOpen className="h-4 w-4" />

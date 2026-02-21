@@ -49,6 +49,8 @@ export interface SavedBook {
   bgColor: string
   frameStyle: FrameStyle
   createdAt: string
+  /** Firestore共有トークン（共有ビューア用） */
+  shareToken?: string
 }
 
 // ── 新規型（Phase 0〜） ──
