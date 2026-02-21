@@ -22,6 +22,10 @@ interface FirestoreStoryData {
   isShared: boolean
   pages: StoryPage[]
   modifications: Modification[]
+  title?: string
+  authorName?: string
+  bgColor?: string
+  frameStyle?: string
   createdAt: ReturnType<typeof serverTimestamp>
   updatedAt: ReturnType<typeof serverTimestamp>
 }
@@ -34,9 +38,20 @@ export async function saveStory(
     shareToken: string
     pages: StoryPage[]
     modifications: Modification[]
+    title?: string
+    authorName?: string
+    bgColor?: string
+    frameStyle?: string
   }
 ): Promise<void> {
   const storyRef = doc(collection(db, STORIES_COLLECTION), storyId)
+
+  // 表紙メタ情報（undefinedのフィールドはFirestoreに書き込まない）
+  const coverMeta: Record<string, string> = {}
+  if (data.title) coverMeta.title = data.title
+  if (data.authorName) coverMeta.authorName = data.authorName
+  if (data.bgColor) coverMeta.bgColor = data.bgColor
+  if (data.frameStyle) coverMeta.frameStyle = data.frameStyle
 
   // 既存ドキュメントがあればcreatedAtを保護
   const existing = await getDoc(storyRef)
@@ -48,6 +63,7 @@ export async function saveStory(
       isShared: true,
       pages: data.pages,
       modifications: data.modifications,
+      ...coverMeta,
       updatedAt: serverTimestamp(),
     })
   } else {
@@ -57,9 +73,10 @@ export async function saveStory(
       isShared: true,
       pages: data.pages,
       modifications: data.modifications,
+      ...coverMeta,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    } satisfies FirestoreStoryData)
+    } as FirestoreStoryData)
   }
 
   // 逆引きインデックス

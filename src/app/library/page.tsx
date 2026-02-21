@@ -16,6 +16,10 @@ interface SharedStoryItem {
   pages: StoryPage[]
   modifications: Modification[]
   updatedAt: unknown
+  title?: string
+  authorName?: string
+  bgColor?: string
+  frameStyle?: string
 }
 
 export default function LibraryPage() {
@@ -35,7 +39,12 @@ export default function LibraryPage() {
       }
     }
 
-    load()
+    // 安全タイムアウト: Firestore接続が完全にハングした場合でもUIを解放
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false)
+    }, 15000)
+
+    load().finally(() => clearTimeout(safetyTimeout))
   }, [])
 
   return (
@@ -62,7 +71,7 @@ export default function LibraryPage() {
                 まだ えほんが ないよ
               </p>
               <p className="mt-2 font-serif text-sm text-muted-foreground">
-                えほんを よんで、シェアすると ここに ならぶよ
+                えほんを よんで ひょうしを つくると ここに ならぶよ
               </p>
             </div>
             <Link

@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { storyId, bookId, pages, modifications } = body
+    const { storyId, bookId, pages, modifications, title, authorName, bgColor, frameStyle } = body
 
     if (!bookId || !pages) {
       return NextResponse.json(
@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
         shareToken,
         pages,
         modifications: modifications || [],
+        title,
+        authorName,
+        bgColor,
+        frameStyle,
       })
     } catch {
       // Firebase未設定の場合はトークン生成のみ

@@ -75,9 +75,9 @@ const journeySteps = [
         <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z" />
       </svg>
     ),
-    bgColor: "bg-primary/10",
-    iconBg: "bg-primary/25",
-    borderColor: "border-primary/20",
+    bgColor: "bg-storybook-sky/20",
+    iconBg: "bg-storybook-sky/40",
+    borderColor: "border-storybook-sky/40",
   },
   {
     number: 4,
@@ -103,9 +103,9 @@ const journeySteps = [
         <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
       </svg>
     ),
-    bgColor: "bg-storybook-red/10",
-    iconBg: "bg-storybook-red/25",
-    borderColor: "border-storybook-red/20",
+    bgColor: "bg-storybook-lavender/20",
+    iconBg: "bg-storybook-lavender/40",
+    borderColor: "border-storybook-lavender/40",
   },
 ]
 
@@ -163,7 +163,10 @@ export function ExperienceSection() {
         <div className="relative">
           {/* Vertical connecting line */}
           <div
-            className="absolute left-6 top-2 h-[calc(100%-16px)] w-px bg-gradient-to-b from-storybook-peach via-storybook-sage to-storybook-red/50 md:left-7"
+            className="absolute left-6 top-2 h-[calc(100%-16px)] w-px md:left-7"
+            style={{
+              background: `linear-gradient(to bottom, var(--storybook-peach), var(--storybook-sage), var(--storybook-sky), var(--storybook-lavender))`,
+            }}
             aria-hidden="true"
           />
 

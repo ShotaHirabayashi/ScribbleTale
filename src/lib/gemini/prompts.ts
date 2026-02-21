@@ -1,7 +1,8 @@
 /** 絵本イラストの画風を統一するためのベースプロンプト */
 export const BASE_ART_STYLE_PROMPT = `Japanese picture book illustration, soft watercolor and colored pencil,
 muted pastel tones, wide white margins, gentle hand-drawn lines,
-natural paper texture, minimal detail, consistent character design`
+natural paper texture, minimal detail, consistent character design,
+portrait orientation (3:4 aspect ratio), vertical composition`
 
 /** 画像生成プロンプトを構築する */
 export function buildImagePrompt(
@@ -184,5 +185,6 @@ Key change: incorporate "${keyword}" into the scene naturally.
 Original scene was: "${originalDescription}"
 
 Maintain the same art style, color palette, and character proportions.
-Keep the soft, gentle aesthetic suitable for a children's picture book.`
+Keep the soft, gentle aesthetic suitable for a children's picture book.
+Use portrait orientation (3:4 aspect ratio) with vertical composition.`
 }

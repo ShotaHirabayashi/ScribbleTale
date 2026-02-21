@@ -22,13 +22,17 @@ interface SharedBookCardProps {
     pages: StoryPage[]
     modifications: Modification[]
     updatedAt: unknown
+    title?: string
+    authorName?: string
+    bgColor?: string
+    frameStyle?: string
   }
   index: number
 }
 
 export function SharedBookCard({ story, index }: SharedBookCardProps) {
-  const title = BOOK_TITLES[story.bookId] ?? story.bookId
-  const bgColor = BOOK_COLORS[story.bookId] ?? "#f0ead6"
+  const title = story.title || BOOK_TITLES[story.bookId] || story.bookId
+  const bgColor = story.bgColor || BOOK_COLORS[story.bookId] || "#f0ead6"
 
   // カバー画像: 1ページ目（カバー）のillustration
   const coverImage = story.pages[0]?.illustration || `/images/${story.bookId}-cover.jpg`
@@ -74,6 +78,11 @@ export function SharedBookCard({ story, index }: SharedBookCardProps) {
             <h3 className="font-serif text-sm font-bold leading-snug text-white md:text-base">
               {title}
             </h3>
+            {story.authorName && (
+              <p className="mt-0.5 font-serif text-xs text-white/90">
+                さく: {story.authorName}
+              </p>
+            )}
             {modCount > 0 && (
               <p className="mt-0.5 font-serif text-xs text-white/80">
                 {modCount}かい かきかえたよ

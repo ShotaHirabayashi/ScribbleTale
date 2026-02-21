@@ -57,7 +57,7 @@ export function BookPage({
   if (isCover) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-[var(--storybook-cream)] p-4 sm:p-6">
-        <div className="relative w-full max-w-[75%] flex-1 min-h-0 overflow-hidden rounded-lg shadow-md">
+        <div className="relative w-full max-w-[75%] flex-1 min-h-0 aspect-[3/4] overflow-hidden rounded-lg shadow-md">
           <Image
             src={page.illustration}
             alt={page.alt}
@@ -81,7 +81,7 @@ export function BookPage({
   if (isLastPage) {
     return (
       <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1 aspect-[3/4]">
           <Image
             src={page.illustration}
             alt={page.alt}
@@ -108,7 +108,7 @@ export function BookPage({
 
   return (
     <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 aspect-[3/4]">
         <Image
           src={page.illustration}
           alt={page.alt}

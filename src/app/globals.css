@@ -43,6 +43,8 @@
   --storybook-sage: oklch(0.78 0.08 150);
   --storybook-brown: oklch(0.45 0.06 60);
   --storybook-red: oklch(0.65 0.18 25);
+  --storybook-sky: oklch(0.82 0.08 230);
+  --storybook-lavender: oklch(0.80 0.08 300);
 }
 
 .dark {
@@ -90,6 +92,8 @@
   --color-storybook-sage: var(--storybook-sage);
   --color-storybook-brown: var(--storybook-brown);
   --color-storybook-red: var(--storybook-red);
+  --color-storybook-sky: var(--storybook-sky);
+  --color-storybook-lavender: var(--storybook-lavender);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

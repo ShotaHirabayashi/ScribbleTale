@@ -76,6 +76,10 @@ async function generateWithModel(
     config: {
       responseModalities: ['image', 'text'],
       safetySettings: CHILD_SAFE_SETTINGS,
+      imageConfig: {
+        aspectRatio: '3:4',
+        imageSize: '2K',
+      },
     },
   })
 

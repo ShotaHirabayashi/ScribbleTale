@@ -196,7 +196,7 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
         onTouchEnd={handleTouchEnd}
       >
         {/* Book body - constrained to available space */}
-        <div className="relative h-full w-full overflow-hidden rounded-lg shadow-2xl sm:rounded-xl"
+        <div className="relative h-full w-full aspect-[3/4] overflow-hidden rounded-lg shadow-2xl sm:rounded-xl"
           style={{ maxWidth: 'min(100%, 40rem)', maxHeight: '100%' }}
         >
           {/* Page stack */}

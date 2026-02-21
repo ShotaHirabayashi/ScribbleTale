@@ -4,6 +4,7 @@ import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { CoverPreview } from "./CoverPreview"
 import { saveBook } from "@/lib/data/saved-books"
+import { useStoryStore } from "@/stores/story-store"
 import { BookOpen, Sparkles } from "lucide-react"
 import type { Story, FrameStyle } from "@/lib/types"
 
@@ -27,6 +28,7 @@ const FRAME_STYLES: { value: FrameStyle; label: string }[] = [
 
 export function CoverCreator({ story }: CoverCreatorProps) {
   const router = useRouter()
+  const { storySessionId, pages, modifications } = useStoryStore()
   const [title, setTitle] = useState(story.title)
   const [authorName, setAuthorName] = useState("")
   const [bgColor, setBgColor] = useState(BG_COLORS[0].value)
@@ -40,27 +42,54 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     return () => clearTimeout(timer)
   })
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!authorName.trim()) return
     setIsSaving(true)
+
+    const finalTitle = title.trim() || story.title
+    const finalAuthor = authorName.trim()
 
     const book = {
       id: `book-${Date.now()}`,
       storyId: story.id,
-      title: title.trim() || story.title,
-      authorName: authorName.trim(),
+      title: finalTitle,
+      authorName: finalAuthor,
       coverImage: story.coverImage,
       bgColor,
       frameStyle,
       createdAt: new Date().toISOString(),
     }
 
+    // localStorage に保存（/share/[id] ページ用）
     saveBook(book)
+
+    // Firestore に保存（/library ページ用）
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storyId: storySessionId || book.id,
+          bookId: story.id,
+          pages,
+          modifications,
+          title: finalTitle,
+          authorName: finalAuthor,
+          bgColor,
+          frameStyle,
+        }),
+      })
+      if (!res.ok) {
+        console.warn("[CoverCreator] Firestore save failed:", res.status)
+      }
+    } catch (err) {
+      console.warn("[CoverCreator] Firestore save error:", err)
+    }
 
     setTimeout(() => {
       router.push(`/share/${book.id}`)
     }, 600)
-  }, [authorName, bgColor, frameStyle, router, story, title])
+  }, [authorName, bgColor, frameStyle, router, story, title, storySessionId, pages, modifications])
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -178,7 +207,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
             className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-4 font-serif text-base font-bold text-primary-foreground shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
           >
             <BookOpen className="h-5 w-5" />
-            {isSaving ? "ほぞんしています..." : "ほぞんして シェアする"}
+            {isSaving ? "ほぞんしています..." : "ほぞんする"}
           </button>
 
           {!authorName.trim() && (
