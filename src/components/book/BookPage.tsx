@@ -5,6 +5,7 @@ import { StoryText } from './StoryText'
 import { CommentTimeButton } from './CommentTimeButton'
 import { CommentTimeOverlay } from './CommentTimeOverlay'
 import { ModificationLoading } from './ModificationLoading'
+import { DrawingOverlay } from './DrawingOverlay'
 import type { StoryPage } from '@/lib/types'
 import type { PagePhase, ModificationPhase } from '@/lib/types'
 
@@ -20,6 +21,10 @@ interface BookPageProps {
   onReadingComplete?: () => void
   onStartCommentTime?: () => void
   onSkipCommentTime?: () => void
+  onEndCommentTime?: () => void
+  onStartDrawing?: () => void
+  onDrawingComplete?: (imageBase64: string) => void
+  onDrawingCancel?: () => void
 }
 
 export function BookPage({
@@ -34,9 +39,18 @@ export function BookPage({
   onReadingComplete,
   onStartCommentTime,
   onSkipCommentTime,
+  onEndCommentTime,
+  onStartDrawing,
+  onDrawingComplete,
+  onDrawingCancel,
 }: BookPageProps) {
   // 表示するテキスト（改変済みの場合はcurrentTextを使用）
   const displayText = page.currentText || page.text
+
+  // ボタン表示条件
+  const canShowCommentTimeButton =
+    onStartCommentTime && onSkipCommentTime && onStartDrawing
+    && (page.modificationCount ?? 0) < 2
 
   if (isCover) {
     return (
@@ -108,21 +122,30 @@ export function BookPage({
         />
       </div>
 
-      {/* pagePhase オーバーレイ */}
-      {pagePhase === 'readingComplete'
-        && onStartCommentTime && onSkipCommentTime
-        && (page.modificationCount ?? 0) < 2 && (
-        <CommentTimeButton
-          onStart={onStartCommentTime}
-          onSkip={onSkipCommentTime}
+      {/* ボタン用スペース（無条件で高さ確保してレイアウトシフトを防ぐ） */}
+      <div className="shrink-0 h-[3.5rem] px-4 sm:px-6 md:px-10">
+        {pagePhase === 'readingComplete' && canShowCommentTimeButton && (
+          <CommentTimeButton
+            onStart={onStartCommentTime!}
+            onStartDrawing={onStartDrawing!}
+            onSkip={onSkipCommentTime!}
+          />
+        )}
+      </div>
+
+      {pagePhase === 'drawing' && onDrawingComplete && onDrawingCancel && (
+        <DrawingOverlay
+          onComplete={onDrawingComplete}
+          onCancel={onDrawingCancel}
         />
       )}
 
-      {pagePhase === 'commentTime' && onSkipCommentTime && (
+      {pagePhase === 'commentTime' && onSkipCommentTime && onEndCommentTime && (
         <CommentTimeOverlay
           remainingMs={commentTimeRemainingMs}
           childUtterance={childUtterance ?? null}
           onSkip={onSkipCommentTime}
+          onEnd={onEndCommentTime}
         />
       )}
 

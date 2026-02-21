@@ -13,6 +13,9 @@ export function StoryText({ text, isActive, className = '', onComplete }: StoryT
   const [visibleChars, setVisibleChars] = useState(0)
   const onCompleteCalledRef = useRef(false)
 
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+
   useEffect(() => {
     if (!isActive) {
       setVisibleChars(0)
@@ -32,13 +35,13 @@ export function StoryText({ text, isActive, className = '', onComplete }: StoryT
         clearInterval(timer)
         if (!onCompleteCalledRef.current) {
           onCompleteCalledRef.current = true
-          onComplete?.()
+          onCompleteRef.current?.()
         }
       }
     }, 50)
 
     return () => clearInterval(timer)
-  }, [isActive, text, onComplete])
+  }, [isActive, text])
 
   const lines = text.split('\n')
   let charCount = 0

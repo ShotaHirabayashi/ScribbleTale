@@ -1,17 +1,19 @@
 'use client'
 
-import { Mic, SkipForward } from 'lucide-react'
+import { Mic, SkipForward, CheckCircle } from 'lucide-react'
 
 interface CommentTimeOverlayProps {
   remainingMs: number
   childUtterance: string | null
   onSkip: () => void
+  onEnd: () => void
 }
 
 export function CommentTimeOverlay({
   remainingMs,
   childUtterance,
   onSkip,
+  onEnd,
 }: CommentTimeOverlayProps) {
   const remainingSec = Math.ceil(remainingMs / 1000)
   const progress = 1 - remainingMs / 30000
@@ -56,6 +58,13 @@ export function CommentTimeOverlay({
           <span className="font-serif text-xs text-background/60">
             {remainingSec}びょう
           </span>
+          <button
+            onClick={onEnd}
+            className="flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 font-serif text-xs font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 sm:text-sm"
+          >
+            <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            おわり
+          </button>
           <button
             onClick={onSkip}
             className="flex items-center gap-1 rounded-full bg-background/20 px-3 py-1.5 font-serif text-xs text-background/80 backdrop-blur-sm transition-all hover:bg-background/30 active:scale-95"

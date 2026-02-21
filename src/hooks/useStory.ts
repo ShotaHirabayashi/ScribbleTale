@@ -45,6 +45,11 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
     store.startCommentTime()
   }, [store])
 
+  /** コメントタイム終了（おわりボタン） */
+  const handleEndCommentTime = useCallback(() => {
+    store.endCommentTime('end_keyword')
+  }, [store])
+
   /** コメントタイムスキップ */
   const handleSkipCommentTime = useCallback(() => {
     store.skipCommentTime()
@@ -87,11 +92,38 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
 
           const result = await response.json()
 
+          // drawing トリガーの場合は挿絵に描画を合成
+          let newIllustration: string | undefined
+          if (
+            store.selectedKeyword?.trigger === 'drawing' &&
+            store.drawingImageBase64
+          ) {
+            try {
+              const targetPage = store.pages[result.targetPageIndex]
+              const editResponse = await fetch('/api/edit-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  originalDescription: targetPage?.alt || '',
+                  keyword: store.selectedKeyword.keyword,
+                  modifiedText: result.modifiedText,
+                  referenceImageBase64: store.drawingImageBase64,
+                }),
+              })
+              if (editResponse.ok) {
+                const editResult = await editResponse.json()
+                newIllustration = `data:${editResult.mimeType};base64,${editResult.imageBase64}`
+              }
+            } catch (imgError) {
+              console.warn('[useStory] Image edit failed, continuing without:', imgError)
+            }
+          }
+
           // 改変完了
           store.completeModification(
             result.targetPageIndex,
             result.modifiedText,
-            undefined, // 画像はPhase 9で実装
+            newIllustration,
             result.modification
           )
         } catch (error) {
@@ -166,6 +198,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
     ...store,
     handleReadingComplete,
     handleStartCommentTime,
+    handleEndCommentTime,
     handleSkipCommentTime,
   }
 }

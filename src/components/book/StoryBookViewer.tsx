@@ -11,6 +11,7 @@ import { ShareModal } from '@/components/share/ShareModal'
 import { useStoryStore } from '@/stores/story-store'
 import { useMusicSession } from '@/hooks/useMusicSession'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
+import { useDrawingInput } from '@/hooks/useDrawingInput'
 import { useSounds } from '@/components/audio/SoundProvider'
 import type { Story } from '@/lib/types'
 
@@ -40,6 +41,7 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
     pages: storePages,
     handleReadingComplete,
     handleStartCommentTime,
+    handleEndCommentTime,
     handleSkipCommentTime,
   } = useStory(bookId || story.id, story.pages)
 
@@ -64,6 +66,17 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
     isMuted: readOnly || isSoundMuted,
     isInitialized: !readOnly && isSoundInitialized,
   })
+
+  // 描画入力（readOnlyモードでは無効）
+  const { handleDrawingComplete, handleDrawingCancel } = useDrawingInput({
+    bookId: bookId || story.id,
+    currentPageIndex: currentPage,
+  })
+
+  const startDrawing = useStoryStore((s) => s.startDrawing)
+  const handleStartDrawing = useCallback(() => {
+    startDrawing()
+  }, [startDrawing])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
@@ -123,6 +136,8 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
+      // drawing フェーズ中はスワイプ無効
+      if (pagePhase === 'drawing') return
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
       const deltaY = e.changedTouches[0].clientY - touchStartY.current
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
@@ -130,7 +145,7 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
         else goToPrevPage()
       }
     },
-    [goToNextPage, goToPrevPage]
+    [goToNextPage, goToPrevPage, pagePhase]
   )
 
   // Keyboard handling
@@ -243,7 +258,11 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
                     childUtterance={childUtterance}
                     onReadingComplete={isPageActive && !isCover ? handleReadingComplete : undefined}
                     onStartCommentTime={isPageActive ? handleStartCommentTime : undefined}
+                    onEndCommentTime={isPageActive ? handleEndCommentTime : undefined}
                     onSkipCommentTime={isPageActive ? handleSkipCommentTime : undefined}
+                    onStartDrawing={isPageActive ? handleStartDrawing : undefined}
+                    onDrawingComplete={isPageActive ? handleDrawingComplete : undefined}
+                    onDrawingCancel={isPageActive ? handleDrawingCancel : undefined}
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/5 to-transparent" />
