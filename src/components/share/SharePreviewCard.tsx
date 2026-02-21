@@ -39,7 +39,7 @@ export function SharePreviewCard({ book }: SharePreviewCardProps) {
               {book.title}
             </h2>
             <p className="mt-1 font-serif text-xs text-muted-foreground">
-              さく: {book.authorName}
+              さくしゃ: {book.authorName}
             </p>
           </div>
 

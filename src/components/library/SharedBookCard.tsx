@@ -81,7 +81,7 @@ export function SharedBookCard({ story, index }: SharedBookCardProps) {
             </h3>
             {story.authorName && (
               <p className="mt-0.5 font-serif text-xs text-white/90">
-                さく: {story.authorName}
+                さくしゃ: {story.authorName}
               </p>
             )}
             {modCount > 0 && (

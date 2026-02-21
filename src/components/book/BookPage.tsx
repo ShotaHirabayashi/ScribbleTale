@@ -1,10 +1,12 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { StoryText } from './StoryText'
 import { CommentTimeButton } from './CommentTimeButton'
 import { CommentTimeOverlay } from './CommentTimeOverlay'
 import { ModificationLoading } from './ModificationLoading'
+import { ImageShimmer } from './ImageShimmer'
 import { DrawingOverlay } from './DrawingOverlay'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
 import { DrawingRecognizingModal } from './DrawingRecognizingModal'
@@ -73,6 +75,17 @@ export function BookPage({
   // ボタン表示条件
   const canShowCommentTimeButton = onStartCommentTime && onStartDrawing
 
+  // シマー表示制御: illustrationLoading解除後に遅延で非表示
+  const [showShimmer, setShowShimmer] = useState(false)
+  useEffect(() => {
+    if (page.illustrationLoading) {
+      setShowShimmer(true)
+    } else if (showShimmer) {
+      const timer = setTimeout(() => setShowShimmer(false), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [page.illustrationLoading, showShimmer])
+
   if (isCover) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-[var(--storybook-cream)] p-4 sm:p-6">
@@ -132,8 +145,13 @@ export function BookPage({
           src={page.illustration}
           alt={page.alt}
           fill
-          className="object-contain"
+          className={`object-contain transition-opacity duration-1000 ${
+            page.illustrationLoading ? 'opacity-0' : 'opacity-100'
+          }`}
         />
+        {showShimmer && (
+          <ImageShimmer previousIllustration={page.previousIllustration} />
+        )}
       </div>
       <div className="min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4">
         <StoryText
@@ -196,8 +214,8 @@ export function BookPage({
             />
           )}
 
-          {pagePhase === 'modifying' && modificationPhase && (
-            <ModificationLoading phase={modificationPhase} />
+          {pagePhase === 'modifying' && modificationPhase === 'orchestrating' && (
+            <ModificationLoading phase={modificationPhase} keyword={selectedKeyword ?? undefined} />
           )}
         </>
       )}

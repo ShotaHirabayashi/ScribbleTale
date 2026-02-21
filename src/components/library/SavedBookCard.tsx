@@ -43,7 +43,7 @@ export function SavedBookCard({ book, index }: SavedBookCardProps) {
               {book.title}
             </h3>
             <p className="mt-0.5 font-serif text-xs text-white/80">
-              さく: {book.authorName}
+              さくしゃ: {book.authorName}
             </p>
           </div>
 

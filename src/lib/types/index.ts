@@ -25,6 +25,10 @@ export interface StoryPage {
   needsContextRegeneration?: boolean
   /** テキストアニメーション完了済み（既読） */
   textRevealed?: boolean
+  /** 画像生成中フラグ */
+  illustrationLoading?: boolean
+  /** フェードイン用に旧画像を保持 */
+  previousIllustration?: string
 }
 
 export interface Story {

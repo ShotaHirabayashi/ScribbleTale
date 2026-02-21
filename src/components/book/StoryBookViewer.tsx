@@ -382,7 +382,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
           )
         ) : readOnly && authorName ? (
           <p className="font-serif text-[10px] text-background/60 sm:text-xs">
-            さく: {authorName}
+            さくしゃ: {authorName}
           </p>
         ) : (
           <p className="font-serif text-[10px] text-background/40 sm:text-xs">

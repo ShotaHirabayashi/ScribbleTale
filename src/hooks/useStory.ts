@@ -115,12 +115,16 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
             throw new Error(`Modify API failed: ${response.status} - ${errBody.error || 'unknown'}`)
           }
 
-          store.setModificationPhase('generating_image')
-
           const result = await response.json()
 
-          // 挿絵を改変テキストに合わせて再生成
-          let newIllustration: string | undefined
+          // テキスト先行表示: 即座にテキストを反映し、画像はシマー表示
+          store.applyTextFirst(
+            result.targetPageIndex,
+            result.modifiedText,
+            result.modification
+          )
+
+          // 挿絵を改変テキストに合わせて非同期で再生成
           const targetPage = store.pages[result.targetPageIndex]
 
           if (
@@ -145,10 +149,16 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               clearTimeout(editTimer)
               if (editResponse.ok) {
                 const editResult = await editResponse.json()
-                newIllustration = `data:${editResult.mimeType};base64,${editResult.imageBase64}`
+                store.applyImageUpdate(
+                  result.targetPageIndex,
+                  `data:${editResult.mimeType};base64,${editResult.imageBase64}`
+                )
+              } else {
+                store.handleImageFailure(result.targetPageIndex)
               }
             } catch (imgError) {
               console.warn('[useStory] Image edit failed, continuing without:', imgError)
+              store.handleImageFailure(result.targetPageIndex)
             }
           } else {
             // voice トリガー: 改変テキストに合わせて画像を新規生成
@@ -167,20 +177,18 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               clearTimeout(imgTimer)
               if (imgResponse.ok) {
                 const imgResult = await imgResponse.json()
-                newIllustration = `data:${imgResult.mimeType};base64,${imgResult.imageBase64}`
+                store.applyImageUpdate(
+                  result.targetPageIndex,
+                  `data:${imgResult.mimeType};base64,${imgResult.imageBase64}`
+                )
+              } else {
+                store.handleImageFailure(result.targetPageIndex)
               }
             } catch (imgError) {
               console.warn('[useStory] Image generation failed, continuing without:', imgError)
+              store.handleImageFailure(result.targetPageIndex)
             }
           }
-
-          // 改変完了
-          store.completeModification(
-            result.targetPageIndex,
-            result.modifiedText,
-            newIllustration,
-            result.modification
-          )
         } catch (error) {
           console.error('[useStory] Modification failed:', error)
           // エラー時は readingComplete に戻す

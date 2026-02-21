@@ -91,7 +91,7 @@ export function CoverPreview({ title, authorName, coverImage, bgColor, frameStyl
       {/* Author */}
       <div className="mt-2 px-4 text-center">
         <p className="font-serif text-xs text-muted-foreground md:text-sm">
-          さく: {authorName || "なまえを いれてね"}
+          さくしゃ: {authorName || "なまえを いれてね"}
         </p>
       </div>
 

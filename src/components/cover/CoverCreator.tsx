@@ -86,13 +86,56 @@ export function CoverCreator({ story }: CoverCreatorProps) {
 
     const finalTitle = title.trim() || story.title
     const finalAuthor = authorName.trim()
+    const bookId = `book-${Date.now()}`
+    const storyId = storySessionId || bookId
+
+    // Base64画像を Firebase Storage にアップロードして URL に差し替え
+    const { uploadImage, getStoryImagePath } = await import("@/lib/firebase/storage")
+
+    // ページ画像のアップロード
+    const storyPages = pages.length > 0 ? pages : story.pages
+    const uploadedPages = await Promise.all(
+      storyPages.map(async (page, index) => {
+        if (page.illustration && page.illustration.startsWith("data:")) {
+          try {
+            const base64Data = page.illustration.split(",")[1]
+            if (!base64Data) return page
+            const mimeMatch = page.illustration.match(/^data:(image\/\w+);/)
+            const mimeType = mimeMatch?.[1] || "image/png"
+            const path = getStoryImagePath(storyId, index)
+            const downloadUrl = await uploadImage(path, base64Data, mimeType)
+            return { ...page, illustration: downloadUrl }
+          } catch (err) {
+            console.warn(`[CoverCreator] Image upload failed for page ${index}:`, err)
+            return { ...page, illustration: story.pages[index]?.illustration || page.illustration }
+          }
+        }
+        return page
+      })
+    )
+
+    // 表紙画像のアップロード
+    let finalCoverImage = generatedCoverImage || story.coverImage
+    if (generatedCoverImage && generatedCoverImage.startsWith("data:")) {
+      try {
+        const base64Data = generatedCoverImage.split(",")[1]
+        if (base64Data) {
+          const mimeMatch = generatedCoverImage.match(/^data:(image\/\w+);/)
+          const mimeType = mimeMatch?.[1] || "image/png"
+          finalCoverImage = await uploadImage(`stories/${storyId}/cover.png`, base64Data, mimeType)
+        }
+      } catch (err) {
+        console.warn("[CoverCreator] Cover image upload failed:", err)
+        finalCoverImage = story.coverImage
+      }
+    }
 
     const book = {
-      id: `book-${Date.now()}`,
+      id: bookId,
       storyId: story.id,
       title: finalTitle,
       authorName: finalAuthor,
-      coverImage: generatedCoverImage || story.coverImage,
+      coverImage: finalCoverImage,
       bgColor,
       frameStyle,
       createdAt: new Date().toISOString(),
@@ -102,20 +145,18 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     saveBook(book)
 
     // Firestore に保存（/library ページ用）
-    // Zustand の pages が空の場合は story.pages（マスターデータ）をフォールバック
-    const storyPages = pages.length > 0 ? pages : story.pages
     try {
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storyId: storySessionId || book.id,
+          storyId,
           bookId: story.id,
-          pages: storyPages,
+          pages: uploadedPages,
           modifications,
           title: finalTitle,
           authorName: finalAuthor,
-          coverImage: generatedCoverImage || story.coverImage,
+          coverImage: finalCoverImage,
           bgColor,
           frameStyle,
         }),

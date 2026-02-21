@@ -132,6 +132,16 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes float-sparkle {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+  50% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

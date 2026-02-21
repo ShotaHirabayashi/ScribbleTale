@@ -60,6 +60,13 @@ interface StoryState {
     modification?: Modification,
     skipPropagation?: boolean
   ) => void
+  applyTextFirst: (
+    targetPageIndex: number,
+    newText: string,
+    modification?: Modification,
+  ) => void
+  applyImageUpdate: (targetPageIndex: number, newIllustration: string) => void
+  handleImageFailure: (targetPageIndex: number) => void
   startDrawing: () => void
   setDrawingImage: (base64: string | null) => void
   setRecognizedKeyword: (keyword: string | null) => void
@@ -233,6 +240,94 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         modificationPhase: 'complete',
         pagePhase: 'modified',
         modifications: newModifications,
+      }
+    })
+  },
+
+  applyTextFirst: (targetPageIndex, newText, modification) => {
+    set((state) => {
+      const newPages = [...state.pages]
+      if (targetPageIndex >= 0 && targetPageIndex < newPages.length) {
+        const prevCount = newPages[targetPageIndex].modificationCount ?? 0
+        newPages[targetPageIndex] = {
+          ...newPages[targetPageIndex],
+          currentText: newText,
+          isModified: true,
+          modificationCount: prevCount + 1,
+          textRevealed: false,
+          illustrationLoading: true,
+          previousIllustration: newPages[targetPageIndex].illustration,
+        }
+
+        // 後続ページに needsContextRegeneration をセット
+        for (let i = targetPageIndex + 1; i < newPages.length; i++) {
+          newPages[i] = {
+            ...newPages[i],
+            needsContextRegeneration: true,
+          }
+        }
+      }
+
+      const newModifications = modification
+        ? [...state.modifications, modification]
+        : state.modifications
+
+      return {
+        pages: newPages,
+        modificationPhase: 'generating_image',
+        pagePhase: 'modified',
+        modifications: newModifications,
+      }
+    })
+  },
+
+  applyImageUpdate: (targetPageIndex, newIllustration) => {
+    set((state) => {
+      const newPages = [...state.pages]
+      if (targetPageIndex >= 0 && targetPageIndex < newPages.length) {
+        newPages[targetPageIndex] = {
+          ...newPages[targetPageIndex],
+          illustration: newIllustration,
+          illustrationLoading: false,
+          previousIllustration: undefined,
+        }
+      }
+
+      // Firestore自動保存（バックグラウンド）
+      if (state.storySessionId) {
+        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+          updateStoryPages(state.storySessionId!, newPages, state.modifications).catch(() => {})
+        }).catch(() => {})
+      }
+
+      return {
+        pages: newPages,
+        modificationPhase: 'complete',
+      }
+    })
+  },
+
+  handleImageFailure: (targetPageIndex) => {
+    set((state) => {
+      const newPages = [...state.pages]
+      if (targetPageIndex >= 0 && targetPageIndex < newPages.length) {
+        newPages[targetPageIndex] = {
+          ...newPages[targetPageIndex],
+          illustrationLoading: false,
+          previousIllustration: undefined,
+        }
+      }
+
+      // テキストは変更済みなのでFirestore保存
+      if (state.storySessionId) {
+        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+          updateStoryPages(state.storySessionId!, newPages, state.modifications).catch(() => {})
+        }).catch(() => {})
+      }
+
+      return {
+        pages: newPages,
+        modificationPhase: 'complete',
       }
     })
   },
