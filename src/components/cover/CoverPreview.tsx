@@ -65,7 +65,7 @@ export function FrameDecoration({ style }: { style: FrameStyle }) {
 export function CoverPreview({ title, authorName, coverImage, bgColor, frameStyle }: CoverPreviewProps) {
   return (
     <div
-      className="relative mx-auto aspect-[3/4] w-64 overflow-hidden rounded-2xl shadow-xl transition-all duration-500 md:w-72"
+      className="relative mx-auto aspect-[3/4] w-48 overflow-hidden rounded-2xl shadow-xl transition-all duration-500 md:w-64 lg:w-72"
       style={{ backgroundColor: bgColor }}
     >
       <FrameDecoration style={frameStyle} />

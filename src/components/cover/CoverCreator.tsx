@@ -145,7 +145,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col items-center gap-8 px-4 py-6 md:flex-row md:justify-center md:gap-16 md:py-12">
+      <div className="flex flex-1 flex-col items-center gap-4 overflow-y-auto px-4 py-3 md:flex-row md:justify-center md:gap-16 md:py-12">
         {/* Live preview */}
         <div
           className={`transition-all delay-200 duration-700 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}

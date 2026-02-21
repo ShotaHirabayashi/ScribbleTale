@@ -2,7 +2,8 @@
 export const BASE_ART_STYLE_PROMPT = `Japanese picture book illustration, soft watercolor and colored pencil,
 muted pastel tones, wide white margins, gentle hand-drawn lines,
 natural paper texture, minimal detail, consistent character design,
-portrait orientation (3:4 aspect ratio), vertical composition`
+portrait orientation (3:4 aspect ratio), vertical composition.
+CRITICAL: Do NOT include any text, letters, words, titles, numbers, or characters in the image. The illustration must be purely visual with NO text of any kind.`
 
 /** 画像生成プロンプトを構築する */
 export function buildImagePrompt(
@@ -193,7 +194,8 @@ COVER COMPOSITION REQUIREMENTS:
 - Background should be simple but atmospheric, suggesting the story's world
 - Colors should be vibrant yet soft, appealing to young children
 - The overall mood should feel magical and welcoming
-- Portrait orientation (3:4 aspect ratio), vertical composition`
+- Portrait orientation (3:4 aspect ratio), vertical composition
+- CRITICAL: Do NOT include any text, letters, words, titles, numbers, or characters in the image. No text of any kind. The title and author name will be overlaid separately.`
 }
 
 /** 画像編集プロンプト（改変時） */
