@@ -25,21 +25,25 @@ interface SharedStoryItem {
 export default function LibraryPage() {
   const [stories, setStories] = useState<SharedStoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
       try {
-        const { getSharedStories } = await import("@/lib/firebase/firestore")
-        const data = await getSharedStories(50)
-        setStories(data as SharedStoryItem[])
+        // サーバーサイドAPI経由でFirestoreクエリ（クライアントSDKの接続問題を回避）
+        const res = await fetch("/api/library")
+        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        const data = await res.json()
+        setStories(data.stories as SharedStoryItem[])
       } catch (err) {
         console.error("[library] Failed to load stories:", err)
+        setError(err instanceof Error ? err.message : "読み込みに失敗しました")
       } finally {
         setLoading(false)
       }
     }
 
-    // 安全タイムアウト: Firestore接続が完全にハングした場合でもUIを解放
+    // 安全タイムアウト
     const safetyTimeout = setTimeout(() => {
       setLoading(false)
     }, 15000)
@@ -60,6 +64,10 @@ export default function LibraryPage() {
             <p className="font-serif text-sm text-muted-foreground">
               よみこみちゅう...
             </p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-24">
+            <p className="font-serif text-sm text-destructive">{error}</p>
           </div>
         ) : stories.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-6 py-24">

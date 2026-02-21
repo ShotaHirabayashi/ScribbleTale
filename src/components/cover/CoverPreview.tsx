@@ -77,6 +77,7 @@ export function CoverPreview({ title, authorName, coverImage, bgColor, frameStyl
           alt="表紙イラスト"
           fill
           className="object-cover"
+          {...(coverImage.startsWith("data:") ? { unoptimized: true } : {})}
         />
       </div>
 

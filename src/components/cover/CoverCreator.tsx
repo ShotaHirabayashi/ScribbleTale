@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { CoverPreview } from "./CoverPreview"
 import { saveBook } from "@/lib/data/saved-books"
 import { useStoryStore } from "@/stores/story-store"
-import { BookOpen, Sparkles } from "lucide-react"
+import { BookOpen, Sparkles, Wand2 } from "lucide-react"
+import { buildCoverImagePrompt } from "@/lib/gemini/prompts"
 import type { Story, FrameStyle } from "@/lib/types"
 
 interface CoverCreatorProps {
@@ -35,12 +36,49 @@ export function CoverCreator({ story }: CoverCreatorProps) {
   const [frameStyle, setFrameStyle] = useState<FrameStyle>("stars")
   const [isSaving, setIsSaving] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
+  const [generatedCoverImage, setGeneratedCoverImage] = useState<string | null>(null)
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false)
 
   // Fade in on mount
   useState(() => {
     const timer = setTimeout(() => setIsVisible(true), 100)
     return () => clearTimeout(timer)
   })
+
+  const handleGenerateCover = useCallback(async () => {
+    setIsGeneratingCover(true)
+    try {
+      const storyPages = pages.length > 0 ? pages : story.pages
+      const storySummary = storyPages
+        .filter((p) => (p.pageNumber ?? 0) > 0)
+        .map((p) => p.currentText || p.text)
+        .join(" ")
+
+      const sceneDescription = buildCoverImagePrompt({
+        title: title.trim() || story.title,
+        storyId: story.id,
+        storySummary,
+      })
+
+      const res = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneDescription }),
+      })
+
+      if (!res.ok) {
+        console.error("[CoverCreator] Cover generation failed:", res.status)
+        return
+      }
+
+      const { imageBase64, mimeType } = await res.json()
+      setGeneratedCoverImage(`data:${mimeType};base64,${imageBase64}`)
+    } catch (err) {
+      console.error("[CoverCreator] Cover generation error:", err)
+    } finally {
+      setIsGeneratingCover(false)
+    }
+  }, [pages, story, title])
 
   const handleSave = useCallback(async () => {
     if (!authorName.trim()) return
@@ -54,7 +92,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
       storyId: story.id,
       title: finalTitle,
       authorName: finalAuthor,
-      coverImage: story.coverImage,
+      coverImage: generatedCoverImage || story.coverImage,
       bgColor,
       frameStyle,
       createdAt: new Date().toISOString(),
@@ -64,6 +102,8 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     saveBook(book)
 
     // Firestore に保存（/library ページ用）
+    // Zustand の pages が空の場合は story.pages（マスターデータ）をフォールバック
+    const storyPages = pages.length > 0 ? pages : story.pages
     try {
       const res = await fetch("/api/share", {
         method: "POST",
@@ -71,7 +111,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
         body: JSON.stringify({
           storyId: storySessionId || book.id,
           bookId: story.id,
-          pages,
+          pages: storyPages,
           modifications,
           title: finalTitle,
           authorName: finalAuthor,
@@ -89,7 +129,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     setTimeout(() => {
       router.push(`/share/${book.id}`)
     }, 600)
-  }, [authorName, bgColor, frameStyle, router, story, title, storySessionId, pages, modifications])
+  }, [authorName, bgColor, frameStyle, router, story, title, storySessionId, pages, modifications, generatedCoverImage])
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -113,7 +153,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
           <CoverPreview
             title={title}
             authorName={authorName}
-            coverImage={story.coverImage}
+            coverImage={generatedCoverImage || story.coverImage}
             bgColor={bgColor}
             frameStyle={frameStyle}
           />
@@ -138,6 +178,25 @@ export function CoverCreator({ story }: CoverCreatorProps) {
               className="rounded-xl border-2 border-border bg-card px-4 py-3 font-serif text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary"
             />
           </div>
+
+          {/* Generate cover image button */}
+          <button
+            onClick={handleGenerateCover}
+            disabled={isGeneratingCover}
+            className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-3 font-serif text-sm text-primary transition-all hover:border-primary/60 hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"
+          >
+            {isGeneratingCover ? (
+              <>
+                <Sparkles className="h-4 w-4 animate-spin" />
+                ひょうしの えを つくっています...
+              </>
+            ) : (
+              <>
+                <Wand2 className="h-4 w-4" />
+                ひょうしの えを つくる
+              </>
+            )}
+          </button>
 
           {/* Author name input */}
           <div className="flex flex-col gap-2">

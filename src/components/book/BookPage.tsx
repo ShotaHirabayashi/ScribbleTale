@@ -51,7 +51,7 @@ export function BookPage({
 
   // ボタン表示条件
   const canShowCommentTimeButton =
-    onStartCommentTime && onSkipCommentTime && onStartDrawing
+    onStartCommentTime && onStartDrawing
     && (page.modificationCount ?? 0) < 2
 
   if (isCover) {
@@ -134,7 +134,6 @@ export function BookPage({
               <CommentTimeButton
                 onStart={onStartCommentTime!}
                 onStartDrawing={onStartDrawing!}
-                onSkip={onSkipCommentTime!}
               />
             )}
           </div>

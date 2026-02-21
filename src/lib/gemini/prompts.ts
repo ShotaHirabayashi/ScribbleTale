@@ -168,6 +168,34 @@ ${modifiedText}
 問題がある場合: 修正版テキストのみ出力（説明不要）`
 }
 
+/** 表紙画像生成プロンプト */
+export function buildCoverImagePrompt(params: {
+  title: string
+  storyId: string
+  storySummary: string
+}): string {
+  const { title, storyId, storySummary } = params
+
+  return `${BASE_ART_STYLE_PROMPT}
+
+Create a beautiful picture book COVER illustration for a children's story.
+
+Title: "${title}"
+Story ID: ${storyId}
+Story summary: ${storySummary}
+
+COVER COMPOSITION REQUIREMENTS:
+- Design as a book cover: the main subject should be centered and prominent
+- Leave empty space at the top ~20% for the title text overlay
+- Leave empty space at the bottom ~10% for the author name
+- Use a warm, inviting composition that captures the story's essence
+- Include the main character(s) in a iconic, memorable pose
+- Background should be simple but atmospheric, suggesting the story's world
+- Colors should be vibrant yet soft, appealing to young children
+- The overall mood should feel magical and welcoming
+- Portrait orientation (3:4 aspect ratio), vertical composition`
+}
+
 /** 画像編集プロンプト（改変時） */
 export function buildImageEditPrompt(params: {
   originalDescription: string
