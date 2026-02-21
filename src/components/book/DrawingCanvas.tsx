@@ -20,6 +20,11 @@ const COLORS = [
 const LINE_WIDTH = 5
 const ERASER_WIDTH = 20
 
+// 出力画像の最大サイズ（px）- Base64サイズ削減のため
+const MAX_OUTPUT_SIZE = 512
+// JPEG品質（0.0〜1.0）
+const JPEG_QUALITY = 0.7
+
 export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [selectedColor, setSelectedColor] = useState(COLORS[0].value)
@@ -125,8 +130,24 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
   const handleComplete = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const dataUrl = canvas.toDataURL('image/png')
-    // data:image/png;base64, の部分を除いた Base64 を返す
+
+    // Canvasをリサイズしてデータサイズを削減
+    const scale = Math.min(MAX_OUTPUT_SIZE / canvas.width, MAX_OUTPUT_SIZE / canvas.height, 1)
+    const outW = Math.round(canvas.width * scale)
+    const outH = Math.round(canvas.height * scale)
+
+    const offscreen = document.createElement('canvas')
+    offscreen.width = outW
+    offscreen.height = outH
+    const ctx = offscreen.getContext('2d')
+    if (!ctx) return
+
+    // 白背景を描画（JPEG透過非対応のため）
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, outW, outH)
+    ctx.drawImage(canvas, 0, 0, outW, outH)
+
+    const dataUrl = offscreen.toDataURL('image/jpeg', JPEG_QUALITY)
     const base64 = dataUrl.split(',')[1]
     onComplete(base64)
   }, [onComplete])

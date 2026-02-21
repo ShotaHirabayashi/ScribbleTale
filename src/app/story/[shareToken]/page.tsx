@@ -1,6 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { Home } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { SharedStoryViewer } from './SharedStoryViewer'
 import { generateOGDescription } from '@/lib/story/modification-summary'
@@ -148,17 +146,6 @@ export default async function SharedStoryPage({ params }: { params: Params }) {
   return (
     <div className="flex h-dvh flex-col">
       <SharedStoryViewer story={mergedStory} authorName={storyData.authorName || "ScribbleTale"} />
-
-      {/* フッターリンク */}
-      <div className="fixed bottom-4 left-4 z-50">
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 font-serif text-xs text-foreground shadow-md backdrop-blur-sm transition-colors hover:bg-background sm:text-sm"
-        >
-          <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline">じぶんも つくる</span>
-        </Link>
-      </div>
     </div>
   )
 }

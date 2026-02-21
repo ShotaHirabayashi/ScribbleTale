@@ -3,10 +3,10 @@
  *
  * 常時接続 + クライアント側ミュート制御
  * Function Calling: extractKeyword + endCommentTime
- * モデル: gemini-2.5-flash-native-audio-preview-12-2025
+ * モデル: gemini-live-2.5-flash-preview (TEXT応答 + 音声入力対応)
  */
 
-const LIVE_API_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025'
+const LIVE_API_MODEL = 'gemini-live-2.5-flash-preview'
 const MAX_RECONNECT_ATTEMPTS = 3
 const BASE_RECONNECT_DELAY_MS = 1000
 
@@ -28,6 +28,7 @@ export class LiveSessionManager {
   private state: LiveSessionState = 'disconnected'
   private reconnectAttempts = 0
   private isMuted = true
+  private setupComplete = false
 
   constructor(config: LiveSessionConfig) {
     this.config = config
@@ -41,6 +42,7 @@ export class LiveSessionManager {
     if (this.state === 'connected' || this.state === 'connecting') return
 
     this.state = 'connecting'
+    this.setupComplete = false
 
     try {
       const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.config.apiKey}`
@@ -48,6 +50,7 @@ export class LiveSessionManager {
       this.ws = new WebSocket(wsUrl)
 
       this.ws.onopen = () => {
+        console.log('[LiveSession] WebSocket connected')
         this.state = 'connected'
         this.reconnectAttempts = 0
         this.sendSetup()
@@ -57,12 +60,14 @@ export class LiveSessionManager {
         this.handleMessage(event)
       }
 
-      this.ws.onerror = () => {
+      this.ws.onerror = (e) => {
+        console.error('[LiveSession] WebSocket error:', e)
         this.state = 'error'
         this.config.onError(new Error('WebSocket connection error'))
       }
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (e) => {
+        console.warn('[LiveSession] WebSocket closed:', e.code, e.reason)
         this.state = 'disconnected'
         this.attemptReconnect()
       }
@@ -80,13 +85,6 @@ export class LiveSessionManager {
         model: `models/${LIVE_API_MODEL}`,
         generationConfig: {
           responseModalities: ['TEXT'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: 'Aoede',
-              },
-            },
-          },
         },
         contextWindowCompression: {
           triggerTokens: 8000,
@@ -170,13 +168,22 @@ ${this.config.currentPageText}
     try {
       const data = JSON.parse(event.data)
 
+      // setupComplete レスポンス
+      if (data.setupComplete) {
+        console.log('[LiveSession] Setup complete')
+        this.setupComplete = true
+        return
+      }
+
       // Function Call レスポンス
       if (data.serverContent?.modelTurn?.parts) {
         for (const part of data.serverContent.modelTurn.parts) {
           if (part.functionCall) {
+            console.log('[LiveSession] Function call:', part.functionCall.name, part.functionCall.args)
             this.handleFunctionCall(part.functionCall)
           }
           if (part.text) {
+            console.log('[LiveSession] Model text:', part.text.substring(0, 100))
             this.config.onTranscript(part.text)
           }
         }
@@ -185,6 +192,7 @@ ${this.config.currentPageText}
       // ツール呼び出しの結果
       if (data.toolCall?.functionCalls) {
         for (const fc of data.toolCall.functionCalls) {
+          console.log('[LiveSession] Tool call:', fc.name, fc.args)
           this.handleFunctionCall(fc)
         }
       }
@@ -207,9 +215,16 @@ ${this.config.currentPageText}
     }
   }
 
+  private audioSendCount = 0
+
   /** 音声データを送信 */
   sendAudio(audioData: string): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isMuted) return
+
+    this.audioSendCount++
+    if (this.audioSendCount % 50 === 1) {
+      console.log(`[LiveSession] Sending audio chunk #${this.audioSendCount}, ws.readyState=${this.ws.readyState}, muted=${this.isMuted}`)
+    }
 
     this.ws.send(
       JSON.stringify({
@@ -235,6 +250,13 @@ ${this.config.currentPageText}
   }
 
   private attemptReconnect(): void {
+    // セットアップ未完了で切断 = モデルやconfigエラーなので再接続しない
+    if (!this.setupComplete) {
+      console.error('[LiveSession] Disconnected before setup complete, not reconnecting')
+      this.config.onError(new Error('Live API setup failed - check model and config'))
+      return
+    }
+
     if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       this.config.onError(new Error('Max reconnection attempts reached'))
       return

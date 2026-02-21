@@ -7,6 +7,7 @@ import { CommentTimeOverlay } from './CommentTimeOverlay'
 import { ModificationLoading } from './ModificationLoading'
 import { DrawingOverlay } from './DrawingOverlay'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
+import { DrawingRecognizingModal } from './DrawingRecognizingModal'
 import { ConfirmationOverlay } from './ConfirmationOverlay'
 import type { StoryPage } from '@/lib/types'
 import type { PagePhase, ModificationPhase } from '@/lib/types'
@@ -36,6 +37,7 @@ interface BookPageProps {
   selectedUtterance?: string | null
   recognizedKeyword?: string | null
   drawingImageBase64?: string | null
+  isRecognizingDrawing?: boolean
 }
 
 export function BookPage({
@@ -63,6 +65,7 @@ export function BookPage({
   selectedUtterance,
   recognizedKeyword,
   drawingImageBase64,
+  isRecognizingDrawing,
 }: BookPageProps) {
   // 表示するテキスト（改変済みの場合はcurrentTextを使用）
   const displayText = page.currentText || page.text
@@ -99,12 +102,12 @@ export function BookPage({
   if (isLastPage) {
     return (
       <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-        <div className="relative min-h-0 flex-[3]">
+        <div className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]">
           <Image
             src={page.illustration}
             alt={page.alt}
             fill
-            className="object-cover"
+            className="object-contain"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />
         </div>
@@ -126,16 +129,17 @@ export function BookPage({
 
   return (
     <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-      <div className="relative min-h-0 flex-[3]">
+      <div className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]">
         <Image
           src={page.illustration}
           alt={page.alt}
           fill
-          className="object-cover"
+          className="object-contain"
         />
       </div>
       <div className="min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4">
         <StoryText
+          key={`${page.id}-${page.modificationCount ?? 0}`}
           text={displayText}
           isActive={isActive}
           skipAnimation={page.textRevealed}
@@ -161,6 +165,10 @@ export function BookPage({
               onComplete={onDrawingComplete}
               onCancel={onDrawingCancel}
             />
+          )}
+
+          {isRecognizingDrawing && (
+            <DrawingRecognizingModal />
           )}
 
           {pagePhase === 'drawingConfirm' && onDrawingConfirm && onDrawingReject && recognizedKeyword && drawingImageBase64 && (

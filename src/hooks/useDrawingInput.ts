@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useStoryStore } from '@/stores/story-store'
 
 interface UseDrawingInputParams {
@@ -8,11 +8,10 @@ interface UseDrawingInputParams {
 
 export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputParams) {
   const store = useStoryStore()
-  const [isRecognizing, setIsRecognizing] = useState(false)
 
   const handleDrawingComplete = useCallback(
     async (imageBase64: string) => {
-      setIsRecognizing(true)
+      store.setIsRecognizingDrawing(true)
 
       try {
         // 描画データを保存
@@ -24,7 +23,7 @@ export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputPar
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageBase64,
-            mimeType: 'image/png',
+            mimeType: 'image/jpeg',
           }),
         })
 
@@ -46,7 +45,7 @@ export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputPar
         store.setDrawingImage(null)
         store.setPagePhase('readingComplete')
       } finally {
-        setIsRecognizing(false)
+        store.setIsRecognizingDrawing(false)
       }
     },
     [store]
@@ -60,6 +59,5 @@ export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputPar
   return {
     handleDrawingComplete,
     handleDrawingCancel,
-    isRecognizing,
   }
 }

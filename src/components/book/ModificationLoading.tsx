@@ -20,8 +20,8 @@ export function ModificationLoading({ phase }: ModificationLoadingProps) {
   const message = phaseMessages[phase]
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--storybook-brown)]/30 backdrop-blur-[2px]">
-      <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="mx-6 flex w-full max-w-xs flex-col items-center gap-5 rounded-3xl bg-background/95 px-8 py-8 shadow-2xl animate-in fade-in zoom-in-95 duration-500 sm:max-w-sm sm:px-10 sm:py-10">
         {/* 魔法エフェクト */}
         <div className="relative">
           <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
@@ -30,16 +30,16 @@ export function ModificationLoading({ phase }: ModificationLoadingProps) {
           </div>
         </div>
 
-        <p className="font-serif text-sm text-background/90 sm:text-base">
+        <p className="font-serif text-base text-[var(--storybook-brown)] sm:text-lg">
           {message}
         </p>
 
         {/* プログレスドット */}
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-2 w-2 rounded-full bg-primary/60"
+              className="h-2.5 w-2.5 rounded-full bg-primary/60"
               style={{
                 animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite`,
               }}

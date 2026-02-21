@@ -18,6 +18,9 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           // Firestore接続失敗時はローカルのみで初期化
           store.initializeStory(bookId, initialPages)
         })
+      }).catch(() => {
+        // dynamic import失敗時もローカルで初期化
+        store.initializeStory(bookId, initialPages)
       })
     }
   }, [bookId, initialPages, store])
@@ -25,13 +28,15 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
   /** テキスト文字送り完了時のハンドラ */
   const handleReadingComplete = useCallback(() => {
     if (store.pagePhase === 'reading') {
-      store.markTextRevealed(store.currentPageIndex)
       const currentPage = store.pages[store.currentPageIndex]
+      const alreadyRevealed = currentPage?.textRevealed
+      store.markTextRevealed(store.currentPageIndex)
       const modCount = currentPage?.modificationCount ?? 0
-      if (modCount >= 2) {
-        // 2回改変済み → コメントタイムなしで自動ページ送り
+      if (modCount >= 2 && !alreadyRevealed) {
+        // 2回改変済み & 初回表示 → コメントタイムなしで自動ページ送り
         store.setPagePhase('transitioning')
       } else {
+        // 既読ページに戻った場合は readingComplete で止める
         store.setPagePhase('readingComplete')
       }
     }
@@ -85,6 +90,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           // サーバーサイドAPIルート経由で改変 + オーケストレーション
           // illustration (base64 data URI) を除外してペイロードを軽量化
           const lightPages = store.pages.map(({ illustration, ...rest }) => rest)
+          const modifyController = new AbortController()
+          const modifyTimer = setTimeout(() => modifyController.abort(), 60000)
           const response = await fetch('/api/modify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,11 +99,14 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
               bookId: store.bookId,
               bookTitle,
               keyword: store.selectedKeyword!.keyword,
+              childUtterance: store.selectedKeyword!.childUtterance,
               currentPageIndex: store.currentPageIndex,
               pages: lightPages,
               trigger: store.selectedKeyword!.trigger,
             }),
+            signal: modifyController.signal,
           })
+          clearTimeout(modifyTimer)
 
           if (!response.ok) {
             throw new Error(`Modify API failed: ${response.status}`)
@@ -114,6 +124,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           ) {
             try {
               const targetPage = store.pages[result.targetPageIndex]
+              const editController = new AbortController()
+              const editTimer = setTimeout(() => editController.abort(), 60000)
               const editResponse = await fetch('/api/edit-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -123,7 +135,9 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
                   modifiedText: result.modifiedText,
                   referenceImageBase64: store.drawingImageBase64,
                 }),
+                signal: editController.signal,
               })
+              clearTimeout(editTimer)
               if (editResponse.ok) {
                 const editResult = await editResponse.json()
                 newIllustration = `data:${editResult.mimeType};base64,${editResult.imageBase64}`
@@ -174,6 +188,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           // サーバーサイドAPIルート経由で波及再生成
           // illustration を除外してペイロードを軽量化
           const lightPages = store.pages.map(({ illustration, ...rest }) => rest)
+          const regenController = new AbortController()
+          const regenTimer = setTimeout(() => regenController.abort(), 60000)
           const response = await fetch('/api/regenerate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -182,7 +198,9 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
               currentPageIndex: store.currentPageIndex,
               pages: lightPages,
             }),
+            signal: regenController.signal,
           })
+          clearTimeout(regenTimer)
 
           if (!response.ok) {
             throw new Error(`Regenerate API failed: ${response.status}`)
@@ -190,11 +208,14 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
 
           const result = await response.json()
 
-          // フラグをクリアしてから改変完了
+          // フラグをクリアしてから改変完了（波及再生成なので連鎖伝播しない）
           store.clearContextRegenerationFlag(store.currentPageIndex)
           store.completeModification(
             result.targetPageIndex,
-            result.modifiedText
+            result.modifiedText,
+            undefined,
+            undefined,
+            true // skipPropagation: 波及再生成の連鎖を防止
           )
         } catch (error) {
           console.error('[useStory] Context regeneration failed:', error)

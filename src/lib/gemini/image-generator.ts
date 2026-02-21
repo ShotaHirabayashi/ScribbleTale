@@ -4,6 +4,7 @@ import { CHILD_SAFE_SETTINGS } from './safety'
 const PRIMARY_MODEL = 'gemini-3-pro-image-preview'
 const FALLBACK_MODEL = 'gemini-2.5-flash-image'
 const PRIMARY_TIMEOUT_MS = 15000
+const FALLBACK_TIMEOUT_MS = 45000
 const CIRCUIT_BREAKER_COOLDOWN_MS = 60000
 
 let circuitBreakerTrippedAt: number | null = null
@@ -33,7 +34,10 @@ export async function generateImage(
 
   // サーキットブレーカーが開いている場合はフォールバックモデルを使用
   if (isCircuitBreakerOpen()) {
-    return generateWithModel(genai, FALLBACK_MODEL, prompt, referenceImageBase64)
+    return generateWithTimeout(
+      generateWithModel(genai, FALLBACK_MODEL, prompt, referenceImageBase64),
+      FALLBACK_TIMEOUT_MS
+    )
   }
 
   // プライマリモデルで試行
@@ -46,8 +50,11 @@ export async function generateImage(
     console.warn('[ImageGenerator] Primary model failed:', error)
     tripCircuitBreaker()
 
-    // フォールバックモデルで再試行
-    return generateWithModel(genai, FALLBACK_MODEL, prompt, referenceImageBase64)
+    // フォールバックモデルで再試行（タイムアウト付き）
+    return generateWithTimeout(
+      generateWithModel(genai, FALLBACK_MODEL, prompt, referenceImageBase64),
+      FALLBACK_TIMEOUT_MS
+    )
   }
 }
 

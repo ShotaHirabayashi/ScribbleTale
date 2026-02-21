@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { Check, RotateCcw } from 'lucide-react'
 
 interface DrawingConfirmOverlayProps {
@@ -21,12 +20,11 @@ export function DrawingConfirmOverlay({
       <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
         {/* 描いた絵のプレビュー */}
         <div className="relative h-32 w-32 overflow-hidden rounded-2xl border-4 border-background/80 bg-white shadow-xl sm:h-40 sm:w-40">
-          <Image
-            src={drawingImageBase64}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={drawingImageBase64.startsWith('data:') ? drawingImageBase64 : `data:image/png;base64,${drawingImageBase64}`}
             alt="おえかき"
-            fill
-            className="object-contain p-2"
-            unoptimized
+            className="absolute inset-0 h-full w-full object-contain p-2"
           />
         </div>
 

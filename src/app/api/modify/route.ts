@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { bookId, bookTitle, keyword, currentPageIndex, pages, trigger } = body
+    const { bookId, bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger } = body
 
     if (!bookId || !bookTitle || !keyword || currentPageIndex == null || !pages || !trigger) {
       return NextResponse.json(
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     const result = await modifyCurrentPage({
       bookTitle,
       keyword,
+      childUtterance,
       currentPageIndex,
       pages,
       trigger,

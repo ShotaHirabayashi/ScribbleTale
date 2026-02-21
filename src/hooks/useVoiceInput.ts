@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
-import { useLiveSession } from './useLiveSession'
-import { useAudioStream } from './useAudioStream'
+import { useEffect, useRef, useCallback } from 'react'
 import { useCommentTime } from './useCommentTime'
 import { useStoryStore } from '@/stores/story-store'
+import { SpeechRecognitionManager } from '@/lib/speech/speech-recognition'
 import type { ExtractionResult } from '@/lib/types'
 
 interface UseVoiceInputOptions {
@@ -18,11 +17,10 @@ interface UseVoiceInputOptions {
 /**
  * 音声入力の統合フック
  *
- * useLiveSession + useAudioStream + useCommentTime を接続し、
- * コメントタイム中のマイク起動→Live API→キーワード抽出→store反映を管理
+ * Web Speech API で音声→テキスト変換し、
+ * /api/extract-keyword でキーワード抽出→store反映を管理
  */
 export function useVoiceInput({
-  bookId,
   bookTitle,
   currentPageIndex,
   pages,
@@ -30,151 +28,126 @@ export function useVoiceInput({
 }: UseVoiceInputOptions) {
   const addPendingKeyword = useStoryStore((s) => s.addPendingKeyword)
   const setChildUtterance = useStoryStore((s) => s.setChildUtterance)
-  const endCommentTime = useStoryStore((s) => s.endCommentTime)
 
-  const isConnectingRef = useRef(false)
+  const recognitionRef = useRef<SpeechRecognitionManager | null>(null)
   const prevPhaseRef = useRef(false)
+  const extractingRef = useRef(false)
+  const finalTranscriptRef = useRef('')
 
   const currentPageText = pages[currentPageIndex]?.currentText || pages[currentPageIndex]?.text || ''
-
-  // キーワード抽出コールバック
-  const handleKeywordExtracted = useCallback(
-    (keyword: string, utterance: string) => {
-      const extraction: ExtractionResult = {
-        keyword,
-        childUtterance: utterance,
-        trigger: 'voice',
-        timestamp: Date.now(),
-      }
-      addPendingKeyword(extraction)
-      setChildUtterance(utterance)
-    },
-    [addPendingKeyword, setChildUtterance]
-  )
-
-  // Live APIからのコメントタイム終了シグナル
-  const handleEndCommentTime = useCallback(
-    (reason: string) => {
-      if (reason === 'end_keyword') {
-        endCommentTime('end_keyword')
-      } else {
-        endCommentTime('silence_timeout')
-      }
-    },
-    [endCommentTime]
-  )
-
-  // トランスクリプト（子どもの発言表示用）
-  const handleTranscript = useCallback(
-    (text: string) => {
-      setChildUtterance(text)
-    },
-    [setChildUtterance]
-  )
-
-  const [apiKey, setApiKey] = useState('')
-
-  // サーバーサイドからAPIキーを取得（NEXT_PUBLIC_を使わない）
-  useEffect(() => {
-    fetch('/api/session-key')
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => {
-        if (data?.apiKey) setApiKey(data.apiKey)
-      })
-      .catch(() => {
-        console.warn('[useVoiceInput] Failed to get session key')
-      })
-  }, [])
-
-  // Live API セッション
-  const liveSession = useLiveSession({
-    apiKey,
-    bookTitle,
-    currentPageText,
-    onKeywordExtracted: handleKeywordExtracted,
-    onEndCommentTime: handleEndCommentTime,
-    onTranscript: handleTranscript,
-  })
 
   // コメントタイムタイマー
   const commentTime = useCommentTime({
     maxDurationMs: 30000,
-    silenceTimeoutMs: 5000,
+    silenceTimeoutMs: 10000,
   })
 
-  // 音声データ送信 + 無音タイマーリセット
-  const handleAudioData = useCallback(
-    (base64Data: string) => {
-      liveSession.sendAudio(base64Data)
-      commentTime.notifySpeech()
+  // キーワード抽出（サーバーサイド）
+  const extractKeyword = useCallback(
+    async (utterance: string) => {
+      if (extractingRef.current || !utterance.trim()) return
+      extractingRef.current = true
+
+      try {
+        console.log('[useVoiceInput] Extracting keyword from:', utterance)
+        const res = await fetch('/api/extract-keyword', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            utterance,
+            bookTitle,
+            currentPageText,
+          }),
+        })
+
+        if (!res.ok) {
+          console.warn('[useVoiceInput] Keyword extraction failed:', res.status)
+          return
+        }
+
+        const data = await res.json()
+        if (data.keyword) {
+          console.log('[useVoiceInput] Keyword extracted:', data.keyword)
+          const extraction: ExtractionResult = {
+            keyword: data.keyword,
+            childUtterance: utterance,
+            trigger: 'voice',
+            timestamp: Date.now(),
+          }
+          addPendingKeyword(extraction)
+          setChildUtterance(utterance)
+        }
+      } catch (err) {
+        console.error('[useVoiceInput] Extraction error:', err)
+      } finally {
+        extractingRef.current = false
+      }
     },
-    [liveSession.sendAudio, commentTime.notifySpeech] // eslint-disable-line react-hooks/exhaustive-deps
+    [bookTitle, currentPageText, addPendingKeyword, setChildUtterance]
   )
 
-  // 音声ストリーム（マイク → Live APIへ送信）
-  const audioStream = useAudioStream({
-    onAudioData: handleAudioData,
-  })
-
-  // コメントタイムフェーズ開始/終了でマイクとLive API を制御
+  // コメントタイムフェーズ開始/終了で音声認識を制御
   useEffect(() => {
     const wasActive = prevPhaseRef.current
     prevPhaseRef.current = isCommentTimePhase
 
     if (isCommentTimePhase && !wasActive) {
-      // コメントタイム開始 → マイク起動 + Live API接続
-      if (!apiKey) {
-        console.warn('[useVoiceInput] No API key, voice input disabled')
+      // コメントタイム開始 → 音声認識起動
+      if (!SpeechRecognitionManager.isSupported()) {
+        console.warn('[useVoiceInput] SpeechRecognition not supported in this browser')
         return
       }
 
-      if (isConnectingRef.current) return
-      isConnectingRef.current = true
+      finalTranscriptRef.current = ''
 
-      const startVoice = async () => {
-        try {
-          // Live API接続（未接続の場合のみ）
-          if (!liveSession.isConnected) {
-            await liveSession.connect()
+      const manager = new SpeechRecognitionManager({
+        lang: 'ja-JP',
+        onResult: (transcript, isFinal) => {
+          setChildUtterance(transcript)
+          commentTime.notifySpeech()
+
+          if (isFinal && transcript.trim()) {
+            finalTranscriptRef.current = transcript.trim()
+            // 確定テキストをキーワード抽出に送る
+            extractKeyword(transcript.trim())
           }
-          // ミュート解除
-          liveSession.setMuted(false)
-          // マイク起動
-          await audioStream.start()
-        } catch (err) {
-          console.error('[useVoiceInput] Failed to start:', err)
-        } finally {
-          isConnectingRef.current = false
-        }
-      }
+        },
+        onError: (error) => {
+          console.warn('[useVoiceInput] Speech recognition error:', error)
+        },
+        onEnd: () => {
+          // コメントタイム中なら再起動（音声認識は一定時間で自動終了することがある）
+          if (prevPhaseRef.current && recognitionRef.current) {
+            console.log('[useVoiceInput] Restarting speech recognition...')
+            setTimeout(() => {
+              recognitionRef.current?.start()
+            }, 100)
+          }
+        },
+      })
 
-      startVoice()
+      recognitionRef.current = manager
+      manager.start()
+      console.log('[useVoiceInput] Speech recognition started')
     } else if (!isCommentTimePhase && wasActive) {
-      // コメントタイム終了 → マイク停止 + ミュート
-      audioStream.stop()
-      liveSession.setMuted(true)
+      // コメントタイム終了 → 音声認識停止
+      recognitionRef.current?.stop()
+      recognitionRef.current = null
     }
   }, [isCommentTimePhase]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ページ遷移時にLive APIのコンテキストを更新
-  useEffect(() => {
-    if (liveSession.isConnected) {
-      liveSession.updateContext(currentPageText)
-    }
-  }, [currentPageIndex, currentPageText]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // クリーンアップ
   useEffect(() => {
     return () => {
-      audioStream.stop()
-      liveSession.disconnect()
+      recognitionRef.current?.stop()
+      recognitionRef.current = null
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   return {
-    isConnected: liveSession.isConnected,
-    isStreaming: audioStream.isStreaming,
-    hasPermission: audioStream.hasPermission,
-    error: liveSession.error,
+    isConnected: true, // Web Speech APIは常に利用可能
+    isStreaming: isCommentTimePhase,
+    hasPermission: SpeechRecognitionManager.isSupported(),
+    error: null,
   }
 }

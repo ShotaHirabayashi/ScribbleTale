@@ -17,6 +17,7 @@ const TEXT_MODEL = 'gemini-3-flash-preview'
 export async function modifyCurrentPage(params: {
   bookTitle: string
   keyword: string
+  childUtterance?: string
   currentPageIndex: number
   pages: StoryPage[]
   trigger: 'voice' | 'drawing'
@@ -26,7 +27,7 @@ export async function modifyCurrentPage(params: {
   modification: Modification
   targetPageIndex: number
 }> {
-  const { bookTitle, keyword, currentPageIndex, pages, trigger, apiKey } = params
+  const { bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger, apiKey } = params
 
   // 現在のページを改変対象とする
   const targetPageIndex = currentPageIndex
@@ -51,6 +52,7 @@ export async function modifyCurrentPage(params: {
     pageRole,
     originalText,
     keyword,
+    childUtterance,
     fixedElements,
     previousPages,
   })
@@ -61,7 +63,9 @@ export async function modifyCurrentPage(params: {
     config: { safetySettings: CHILD_SAFE_SETTINGS },
   })
 
-  const modifiedText = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || originalText
+  const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || originalText
+  // Gemini がリテラル \n を返すことがあるので実際の改行に変換
+  const modifiedText = rawText.replace(/\\n/g, '\n')
 
   const modification: Modification = {
     timestamp: Date.now(),
@@ -119,7 +123,8 @@ export async function regeneratePageInContext(params: {
     config: { safetySettings: CHILD_SAFE_SETTINGS },
   })
 
-  const modifiedText = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || originalText
+  const rawRegenText = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || originalText
+  const modifiedText = rawRegenText.replace(/\\n/g, '\n')
 
   return {
     modifiedText,

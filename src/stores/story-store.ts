@@ -32,6 +32,7 @@ interface StoryState {
   // ── 描画 ──
   drawingImageBase64: string | null
   recognizedKeyword: string | null
+  isRecognizingDrawing: boolean
 
   // ── 共有 ──
   shareToken: string | null
@@ -56,11 +57,13 @@ interface StoryState {
     targetPageIndex: number,
     newText: string,
     newIllustration?: string,
-    modification?: Modification
+    modification?: Modification,
+    skipPropagation?: boolean
   ) => void
   startDrawing: () => void
   setDrawingImage: (base64: string | null) => void
   setRecognizedKeyword: (keyword: string | null) => void
+  setIsRecognizingDrawing: (flag: boolean) => void
   confirmDrawing: () => void
   rejectDrawing: () => void
   confirmModification: () => void
@@ -90,6 +93,7 @@ const initialState = {
   modifications: [] as Modification[],
   drawingImageBase64: null as string | null,
   recognizedKeyword: null as string | null,
+  isRecognizingDrawing: false,
   shareToken: null as string | null,
   isShared: false,
   isSharing: false,
@@ -134,10 +138,16 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: keyword,
     })
 
-    // キーワードが抽出されていれば確認フェーズへ、なければ現ページに留まる
     if (keyword) {
+      // キーワードが抽出されていれば確認フェーズへ
       set({ pagePhase: 'confirming' })
+    } else if (reason === 'manual_skip') {
+      // 明示的スキップ → 次ページへ
+      set({ pagePhase: 'transitioning' })
     } else {
+      // end_keyword / タイムアウト等 → ボタンに戻す（再挑戦可能）
+      // ※ end_keywordでキーワードがない場合は非同期抽出待ちの可能性がある
+      //   addPendingKeyword で後から confirming に遷移する
       set({ pagePhase: 'readingComplete' })
     }
   },
@@ -151,9 +161,15 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   addPendingKeyword: (keyword) => {
+    const { pagePhase } = get()
     set((state) => ({
       pendingKeywords: [...state.pendingKeywords, keyword],
     }))
+
+    // コメントタイム終了後に非同期でキーワードが到着した場合 → 自動で確認フェーズへ
+    if (pagePhase === 'readingComplete') {
+      set({ selectedKeyword: keyword, pagePhase: 'confirming' })
+    }
   },
 
   selectKeyword: (keyword) => {
@@ -171,7 +187,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ modificationPhase: phase })
   },
 
-  completeModification: (targetPageIndex, newText, newIllustration, modification) => {
+  completeModification: (targetPageIndex, newText, newIllustration, modification, skipPropagation) => {
     set((state) => {
       const newPages = [...state.pages]
       if (targetPageIndex >= 0 && targetPageIndex < newPages.length) {
@@ -185,13 +201,15 @@ export const useStoryStore = create<StoryState>((set, get) => ({
           ...(newIllustration ? { illustration: newIllustration } : {}),
         }
 
-        // 改変したページより後のページに needsContextRegeneration フラグをセット
-        // ただし既にユーザーが改変済み(modificationCount > 0)のページはフラグを立てない
-        for (let i = targetPageIndex + 1; i < newPages.length; i++) {
-          if ((newPages[i].modificationCount ?? 0) === 0) {
-            newPages[i] = {
-              ...newPages[i],
-              needsContextRegeneration: true,
+        // ユーザー起因の改変のみ後続ページに needsContextRegeneration をセット
+        // 波及再生成(skipPropagation=true)では連鎖を防ぐためフラグを立てない
+        if (!skipPropagation) {
+          for (let i = targetPageIndex + 1; i < newPages.length; i++) {
+            if ((newPages[i].modificationCount ?? 0) === 0) {
+              newPages[i] = {
+                ...newPages[i],
+                needsContextRegeneration: true,
+              }
             }
           }
         }
@@ -204,9 +222,11 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       // Firestore自動保存（バックグラウンド、失敗してもUXに影響しない）
       if (state.storySessionId) {
         import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, newModifications).catch((err) => {
-            console.warn('[story-store] Firestore auto-save failed:', err)
+          updateStoryPages(state.storySessionId!, newPages, newModifications).catch(() => {
+            // AbortError等を含む全エラーを静かに無視（UXに影響しない）
           })
+        }).catch(() => {
+          // dynamic import失敗も無視
         })
       }
 
@@ -236,6 +256,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
   setRecognizedKeyword: (keyword) => {
     set({ recognizedKeyword: keyword })
+  },
+
+  setIsRecognizingDrawing: (flag) => {
+    set({ isRecognizingDrawing: flag })
   },
 
   confirmDrawing: () => {

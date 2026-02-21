@@ -77,6 +77,7 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
   const rejectDrawing = useStoryStore((s) => s.rejectDrawing)
   const recognizedKeyword = useStoryStore((s) => s.recognizedKeyword)
   const drawingImageBase64 = useStoryStore((s) => s.drawingImageBase64)
+  const isRecognizingDrawing = useStoryStore((s) => s.isRecognizingDrawing)
   const handleStartDrawing = useCallback(() => {
     startDrawing()
   }, [startDrawing])
@@ -281,6 +282,7 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
                     selectedUtterance={isPageActive && !readOnly ? childUtterance : undefined}
                     recognizedKeyword={isPageActive && !readOnly ? recognizedKeyword : undefined}
                     drawingImageBase64={isPageActive && !readOnly ? drawingImageBase64 : undefined}
+                    isRecognizingDrawing={isPageActive && !readOnly ? isRecognizingDrawing : undefined}
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/5 to-transparent" />

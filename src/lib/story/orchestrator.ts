@@ -135,8 +135,8 @@ async function checkConsistency(params: {
       return { approved: true, correctedText: modifiedText }
     }
 
-    // 修正版テキストが返された
-    return { approved: false, correctedText: result }
+    // 修正版テキストが返された（リテラル \n を改行に変換）
+    return { approved: false, correctedText: result.replace(/\\n/g, '\n') }
   } catch (error) {
     console.warn('[Orchestrator] Consistency check failed, approving as-is:', error)
     return { approved: true, correctedText: modifiedText }

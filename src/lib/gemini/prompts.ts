@@ -27,21 +27,26 @@ export function buildModificationPrompt(params: {
   pageRole: string
   originalText: string
   keyword: string
+  childUtterance?: string
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
 }): string {
-  const { bookTitle, pageRole, originalText, keyword, fixedElements, previousPages } = params
+  const { bookTitle, pageRole, originalText, keyword, childUtterance, fixedElements, previousPages } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
     .join('\n')
+
+  const utteranceSection = childUtterance && childUtterance !== keyword
+    ? `\n## 子どもの発言\n「${childUtterance}」\n`
+    : ''
 
   return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
 
 ## ルール
 1. このページの役割「${pageRole}」は必ず守ってください（固定要素）
 2. 固定要素: ${fixedElements.join(', ')}
-3. 子どものキーワード「${keyword}」を物語に自然に組み込んでください
+3. 子どもの発言の意図をできるだけ反映して物語を書き換えてください
 4. ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください
 5. 文章は4〜6行程度にしてください
 6. これまでの物語の流れと矛盾しないようにしてください
@@ -51,9 +56,9 @@ ${prevContext || 'なし（最初のページ）'}
 
 ## 元のテキスト
 ${originalText}
-
+${utteranceSection}
 ## 指示
-上記のルールに従い、キーワード「${keyword}」を使って、このページの物語テキストを書き換えてください。
+子どもが「${keyword}」と言いました。${childUtterance && childUtterance !== keyword ? `具体的には「${childUtterance}」という意図です。この意図をできるだけ忠実に反映して、` : ''}このページの物語テキストを書き換えてください。
 改行は\\nで区切ってください。
 テキストのみ出力してください。説明や注釈は不要です。`
 }
