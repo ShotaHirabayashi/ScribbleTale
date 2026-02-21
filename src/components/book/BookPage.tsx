@@ -110,34 +110,6 @@ export function BookPage({
     )
   }
 
-  if (isLastPage) {
-    return (
-      <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-        <div className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]">
-          <Image
-            src={page.illustration}
-            alt={page.alt}
-            fill
-            className="object-contain"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />
-        </div>
-        <div className="flex min-h-0 flex-[2] flex-col items-center gap-1 overflow-y-auto px-4 pb-3 pt-2 sm:gap-2 sm:px-6 sm:pb-4 sm:pt-3 md:px-10">
-          <StoryText
-            text={displayText}
-            isActive={isActive}
-            skipAnimation={page.textRevealed}
-            className="text-center text-sm text-[var(--storybook-brown)] sm:text-base md:text-lg"
-            onComplete={onReadingComplete}
-          />
-          <div className="font-serif text-xs text-muted-foreground sm:text-sm">
-            おしまい
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
       <div className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]">
@@ -152,16 +124,24 @@ export function BookPage({
         {showShimmer && (
           <ImageShimmer previousIllustration={page.previousIllustration} />
         )}
+        {isLastPage && (
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />
+        )}
       </div>
-      <div className="min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4">
+      <div className={`min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4 ${isLastPage ? 'flex flex-col items-center gap-1 sm:gap-2' : ''}`}>
         <StoryText
           key={`${page.id}-${page.modificationCount ?? 0}`}
           text={displayText}
           isActive={isActive}
           skipAnimation={page.textRevealed}
-          className="text-sm text-[var(--storybook-brown)] sm:text-base md:text-lg"
+          className={`text-sm text-[var(--storybook-brown)] sm:text-base md:text-lg ${isLastPage ? 'text-center' : ''}`}
           onComplete={onReadingComplete}
         />
+        {isLastPage && (
+          <div className="font-serif text-xs text-muted-foreground sm:text-sm">
+            おしまい
+          </div>
+        )}
       </div>
 
       {/* readOnly: ボタンなし / 通常: ボタン用スペース確保 */}
