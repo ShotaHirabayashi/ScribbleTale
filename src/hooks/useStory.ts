@@ -43,9 +43,9 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
       store.markTextRevealed(store.currentPageIndex)
       store.setPagePhase('readingComplete')
     } else if (phase === 'modified') {
-      // 改変テキスト文字送り完了 → 自動でページ遷移
+      // 改変テキスト文字送り完了 → ユーザーがページを読めるよう readingComplete で止める
       store.markTextRevealed(store.currentPageIndex)
-      store.setPagePhase('transitioning')
+      store.setPagePhase('readingComplete')
     }
   }, [store])
 
