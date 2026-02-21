@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // stories コレクション
+    match /stories/{storyId} {
+      allow read: if true;
+
+      // 書き込みバリデーション: 必須フィールドの存在チェック + サイズ制限
+      allow create: if
+        request.resource.data.keys().hasAll(['bookId', 'pages', 'createdAt', 'updatedAt'])
+        && request.resource.data.bookId in ['momotaro', 'akazukin']
+        && request.resource.data.pages is list
+        && request.resource.data.pages.size() <= 15
+        && request.resource.data.size() < 1048576; // 1MB制限
+
+      allow update: if
+        request.resource.data.bookId == resource.data.bookId  // bookIdは変更不可
+        && request.resource.data.pages is list
+        && request.resource.data.pages.size() <= 15
+        && request.resource.data.size() < 1048576;
+
+      allow delete: if false;
+    }
+
+    // shareTokens コレクション（逆引きインデックス）
+    match /shareTokens/{tokenId} {
+      allow read: if true;
+      // shareTokenはサーバーサイドAPI経由でのみ作成されるべきだが、
+      // クライアントSDKが書き込む場合は最低限のバリデーション
+      allow create: if
+        request.resource.data.keys().hasAll(['storyId', 'createdAt'])
+        && request.resource.data.storyId is string
+        && request.resource.data.storyId.size() > 0
+        && request.resource.data.storyId.size() <= 100;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // その他のコレクションへのアクセスを拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

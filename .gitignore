@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+.env*.local
+.env
+.DS_Store
+.vercel
+.firebase/
+firebase-debug.log
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts

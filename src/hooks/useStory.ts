@@ -1,0 +1,171 @@
+import { useCallback, useEffect, useRef } from 'react'
+import { useStoryStore } from '@/stores/story-store'
+import type { StoryPage } from '@/lib/types'
+
+/** Zustand storeのヘルパーフック */
+export function useStory(bookId?: string, initialPages?: StoryPage[]) {
+  const store = useStoryStore()
+  const modificationInProgressRef = useRef(false)
+  const regenerationInProgressRef = useRef(false)
+
+  // ストーリー初期化（Firestoreセッション復元）
+  useEffect(() => {
+    if (bookId && initialPages && store.bookId !== bookId) {
+      import('@/lib/firebase/firestore').then(({ getOrCreateStorySession }) => {
+        getOrCreateStorySession(bookId, initialPages).then((session) => {
+          store.initializeStory(bookId, session.pages, session.storyId)
+        }).catch(() => {
+          // Firestore接続失敗時はローカルのみで初期化
+          store.initializeStory(bookId, initialPages)
+        })
+      })
+    }
+  }, [bookId, initialPages, store])
+
+  /** テキスト文字送り完了時のハンドラ */
+  const handleReadingComplete = useCallback(() => {
+    if (store.pagePhase === 'reading') {
+      const currentPage = store.pages[store.currentPageIndex]
+      const modCount = currentPage?.modificationCount ?? 0
+      if (modCount >= 2) {
+        // 2回改変済み → コメントタイムなしで自動ページ送り
+        store.setPagePhase('transitioning')
+      } else {
+        store.setPagePhase('readingComplete')
+      }
+    }
+    if (store.pagePhase === 'modified') {
+      // 改変テキスト文字送り完了 → 自動でページ遷移
+      store.setPagePhase('transitioning')
+    }
+  }, [store])
+
+  /** コメントタイム開始 */
+  const handleStartCommentTime = useCallback(() => {
+    store.startCommentTime()
+  }, [store])
+
+  /** コメントタイムスキップ */
+  const handleSkipCommentTime = useCallback(() => {
+    store.skipCommentTime()
+  }, [store])
+
+  // コメントタイム終了 → 改変フロー起動
+  useEffect(() => {
+    if (
+      store.pagePhase === 'modifying' &&
+      store.selectedKeyword &&
+      !modificationInProgressRef.current
+    ) {
+      modificationInProgressRef.current = true
+
+      const runModification = async () => {
+        try {
+          store.setModificationPhase('orchestrating')
+
+          const bookTitle = store.bookId === 'momotaro' ? 'ももたろう' : 'あかずきん'
+
+          // サーバーサイドAPIルート経由で改変 + オーケストレーション
+          const response = await fetch('/api/modify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookId: store.bookId,
+              bookTitle,
+              keyword: store.selectedKeyword!.keyword,
+              currentPageIndex: store.currentPageIndex,
+              pages: store.pages,
+              trigger: store.selectedKeyword!.trigger,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error(`Modify API failed: ${response.status}`)
+          }
+
+          store.setModificationPhase('generating_image')
+
+          const result = await response.json()
+
+          // 改変完了
+          store.completeModification(
+            result.targetPageIndex,
+            result.modifiedText,
+            undefined, // 画像はPhase 9で実装
+            result.modification
+          )
+        } catch (error) {
+          console.error('[useStory] Modification failed:', error)
+          store.setPagePhase('transitioning')
+        } finally {
+          modificationInProgressRef.current = false
+        }
+      }
+
+      runModification()
+    }
+  }, [store.pagePhase, store.selectedKeyword, store])
+
+  // 波及再生成: reading フェーズ + needsContextRegeneration → 自動再生成
+  useEffect(() => {
+    const currentPage = store.pages[store.currentPageIndex]
+    if (
+      store.pagePhase === 'reading' &&
+      currentPage?.needsContextRegeneration &&
+      !regenerationInProgressRef.current
+    ) {
+      regenerationInProgressRef.current = true
+
+      const runRegeneration = async () => {
+        try {
+          store.setPagePhase('modifying')
+          store.setModificationPhase('orchestrating')
+
+          const bookTitle = store.bookId === 'momotaro' ? 'ももたろう' : 'あかずきん'
+
+          // サーバーサイドAPIルート経由で波及再生成
+          const response = await fetch('/api/regenerate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookTitle,
+              currentPageIndex: store.currentPageIndex,
+              pages: store.pages,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error(`Regenerate API failed: ${response.status}`)
+          }
+
+          const result = await response.json()
+
+          // フラグをクリアしてから改変完了
+          store.clearContextRegenerationFlag(store.currentPageIndex)
+          store.completeModification(
+            result.targetPageIndex,
+            result.modifiedText
+          )
+        } catch (error) {
+          console.error('[useStory] Context regeneration failed:', error)
+          store.clearContextRegenerationFlag(store.currentPageIndex)
+          store.setPagePhase('reading')
+        } finally {
+          regenerationInProgressRef.current = false
+        }
+      }
+
+      runRegeneration()
+    }
+  }, [store.pagePhase, store.currentPageIndex, store])
+
+  // 注: transitioning → ページ送りはStoryBookViewer側で処理
+  // （StoryBookViewerがtransitioning検知 → flip → 700ms後にsyncPageIndex → reading）
+
+  return {
+    ...store,
+    handleReadingComplete,
+    handleStartCommentTime,
+    handleSkipCommentTime,
+  }
+}

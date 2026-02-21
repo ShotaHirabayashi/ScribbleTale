@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // イラスト画像: 読み取りのみ許可、書き込みはAdmin SDK（サーバーサイド）のみ
+    match /illustrations/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 共有用画像: 読み取りのみ許可、書き込みはAdmin SDK（サーバーサイド）のみ
+    match /shared/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ストーリー画像: 読み取りのみ許可、書き込みはAdmin SDK（サーバーサイド）のみ
+    match /stories/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // その他のパスは全てブロック
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
