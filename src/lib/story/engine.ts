@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { buildModificationPrompt, buildContextRegenerationPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
-import type { StoryPage, Modification } from '@/lib/types'
+import type { StoryPage, Modification, CharacterState } from '@/lib/types'
 
 const TEXT_MODEL = 'gemini-3-flash-preview'
 
@@ -22,12 +22,13 @@ export async function modifyCurrentPage(params: {
   pages: StoryPage[]
   trigger: 'voice' | 'drawing'
   apiKey: string
+  characterStates?: CharacterState[]
 }): Promise<{
   modifiedText: string
   modification: Modification
   targetPageIndex: number
 }> {
-  const { bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger, apiKey } = params
+  const { bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger, apiKey, characterStates } = params
 
   // 現在のページを改変対象とする
   const targetPageIndex = currentPageIndex
@@ -55,6 +56,7 @@ export async function modifyCurrentPage(params: {
     childUtterance,
     fixedElements,
     previousPages,
+    characterStates,
   })
 
   const response = await genai.models.generateContent({
@@ -92,8 +94,9 @@ export async function regeneratePageInContext(params: {
   currentPageIndex: number
   pages: StoryPage[]
   apiKey: string
+  characterStates?: CharacterState[]
 }): Promise<{ modifiedText: string; targetPageIndex: number }> {
-  const { bookTitle, currentPageIndex, pages, apiKey } = params
+  const { bookTitle, currentPageIndex, pages, apiKey, characterStates } = params
 
   const targetPage = pages[currentPageIndex]
   const pageRole = targetPage.pageRole || `ページ${targetPage.id}の物語`
@@ -115,6 +118,7 @@ export async function regeneratePageInContext(params: {
     originalText,
     fixedElements,
     previousPages,
+    characterStates,
   })
 
   const response = await genai.models.generateContent({

@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { buildCharacterReactionPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
-import type { CharacterAgent, CharacterReaction } from '@/lib/types'
+import type { CharacterAgent, CharacterReaction, CharacterState } from '@/lib/types'
 
 const TEXT_MODEL = 'gemini-3-flash-preview'
 
@@ -11,7 +11,8 @@ export async function getCharacterReaction(
   keyword: string,
   sceneContext: string,
   bookTitle: string,
-  apiKey: string
+  apiKey: string,
+  characterState?: CharacterState
 ): Promise<CharacterReaction> {
   const genai = new GoogleGenAI({ apiKey })
 
@@ -22,6 +23,7 @@ export async function getCharacterReaction(
     reactionStyle: agent.reactionStyle,
     keyword,
     sceneContext,
+    characterState,
   })
 
   const response = await genai.models.generateContent({

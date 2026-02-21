@@ -5,6 +5,27 @@ natural paper texture, minimal detail, consistent character design,
 portrait orientation (3:4 aspect ratio), vertical composition.
 CRITICAL: Do NOT include any text, letters, words, titles, numbers, or characters in the image. The illustration must be purely visual with NO text of any kind.`
 
+import type { CharacterState } from '@/lib/types'
+
+/** キャラクター状態をプロンプト用テキストに変換 */
+export function buildCharacterStatesSection(characterStates: CharacterState[]): string {
+  if (characterStates.length === 0) return ''
+
+  const lines = characterStates.map((cs) => {
+    const parts = [`- ${cs.characterId}: 見た目=${cs.currentAppearance}, 性格=${cs.currentPersonality}`]
+    if (cs.relationshipChanges.length > 0) {
+      parts.push(`  関係の変化: ${cs.relationshipChanges.join(', ')}`)
+    }
+    if (cs.changes.length > 0) {
+      const recent = cs.changes.slice(-3) // 直近3件
+      parts.push(`  最近の変化: ${recent.map((c) => `ページ${c.pageNumber}で${c.description}`).join(' → ')}`)
+    }
+    return parts.join('\n')
+  })
+
+  return `\n## キャラクターの現在の状態\n${lines.join('\n')}\n`
+}
+
 /** 画像生成プロンプトを構築する */
 export function buildImagePrompt(
   sceneDescription: string,
@@ -30,8 +51,9 @@ export function buildModificationPrompt(params: {
   childUtterance?: string
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
+  characterStates?: CharacterState[]
 }): string {
-  const { bookTitle, pageRole, originalText, keyword, childUtterance, fixedElements, previousPages } = params
+  const { bookTitle, pageRole, originalText, keyword, childUtterance, fixedElements, previousPages, characterStates } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
@@ -40,6 +62,8 @@ export function buildModificationPrompt(params: {
   const utteranceSection = childUtterance && childUtterance !== keyword
     ? `\n## 子どもの発言\n「${childUtterance}」\n`
     : ''
+
+  const charSection = characterStates ? buildCharacterStatesSection(characterStates) : ''
 
   return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
 
@@ -50,10 +74,11 @@ export function buildModificationPrompt(params: {
 4. ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください
 5. 文章は4〜6行程度にしてください
 6. これまでの物語の流れと矛盾しないようにしてください
+7. キャラクターの現在の状態（見た目・性格の変化）を必ず反映してください
 
 ## これまでの物語
 ${prevContext || 'なし（最初のページ）'}
-
+${charSection}
 ## 元のテキスト
 ${originalText}
 ${utteranceSection}
@@ -71,14 +96,19 @@ export function buildCharacterReactionPrompt(params: {
   reactionStyle: string
   keyword: string
   sceneContext: string
+  characterState?: CharacterState
 }): string {
-  const { bookTitle, characterName, personality, reactionStyle, keyword, sceneContext } = params
+  const { bookTitle, characterName, personality, reactionStyle, keyword, sceneContext, characterState } = params
+
+  const stateSection = characterState
+    ? `\n現在の見た目: ${characterState.currentAppearance}\n現在の性格: ${characterState.currentPersonality}${characterState.changes.length > 0 ? `\nこれまでの変化: ${characterState.changes.map((c) => `ページ${c.pageNumber}で${c.description}`).join(' → ')}` : ''}\n`
+    : ''
 
   return `あなたは絵本「${bookTitle}」の「${characterName}」です。
 
 性格: ${personality}
 反応スタイル: ${reactionStyle}
-
+${stateSection}
 いま、子どもが「${keyword}」と言いました。
 場面: ${sceneContext}
 
@@ -108,12 +138,15 @@ export function buildContextRegenerationPrompt(params: {
   originalText: string
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
+  characterStates?: CharacterState[]
 }): string {
-  const { bookTitle, pageRole, originalText, fixedElements, previousPages } = params
+  const { bookTitle, pageRole, originalText, fixedElements, previousPages, characterStates } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
     .join('\n')
+
+  const charSection = characterStates ? buildCharacterStatesSection(characterStates) : ''
 
   return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
 
@@ -124,10 +157,11 @@ export function buildContextRegenerationPrompt(params: {
 4. ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください
 5. 文章は4〜6行程度にしてください
 6. これまでの物語の流れと矛盾しないようにしてください
+7. キャラクターの現在の状態（見た目・性格の変化）を必ず反映してください
 
 ## これまでの物語
 ${prevContext || 'なし（最初のページ）'}
-
+${charSection}
 ## 元のテキスト
 ${originalText}
 
@@ -145,8 +179,10 @@ export function buildConsistencyCheckPrompt(params: {
   previousPages: { pageNumber: number; currentText: string }[]
   modifiedText: string
   childUtterance?: string
+  characterStates?: CharacterState[]
+  pageNumber?: number
 }): string {
-  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance } = params
+  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, characterStates, pageNumber } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
@@ -155,6 +191,8 @@ export function buildConsistencyCheckPrompt(params: {
   const utteranceNote = childUtterance
     ? `\n\n## 子どもの発言（この意図は必ず尊重すること）\n「${childUtterance}」`
     : ''
+
+  const charSection = characterStates ? buildCharacterStatesSection(characterStates) : ''
 
   return `あなたは子供向け絵本「${bookTitle}」の物語の整合性を確認する編集者です。
 
@@ -166,7 +204,7 @@ ${pageRole}
 
 ## これまでの物語
 ${prevContext || 'なし（最初のページ）'}
-${utteranceNote}
+${charSection}${utteranceNote}
 
 ## 改変後テキスト
 ${modifiedText}
@@ -176,10 +214,29 @@ ${modifiedText}
 2. これまでの物語と矛盾していないか
 3. キャラクターの行動に整合性があるか
 4. 子どもの発言の意図が反映されているか
+5. キャラクターの見た目や性格に変化があったか
 
 重要: 子どもの発言の意図（例: 登場人物の変更など）は最優先で尊重してください。
-整合性に問題がない場合: 「OK」のみ出力
-問題がある場合: 子どもの意図を保ったまま修正版テキストのみ出力（説明不要）`
+
+以下のJSON形式で出力してください:
+{
+  "approved": true または false,
+  "correctedText": "（問題がある場合のみ修正版テキスト。OKなら空文字）",
+  "characterUpdates": [
+    {
+      "characterId": "キャラクターID",
+      "currentAppearance": "現在の見た目の説明",
+      "currentPersonality": "現在の性格の説明",
+      "changeDescription": "このページでの変化の説明（変化がなければ空文字）"
+    }
+  ]
+}
+
+注意:
+- characterUpdatesには改変後テキストに登場する全キャラクターの現在状態を含めてください
+- changeDescriptionはこのページ（ページ${pageNumber || '?'}）での変化のみ記述してください
+- 変化がないキャラは changeDescription を空文字にしてください
+- JSONのみ出力してください。説明や注釈は不要です。`
 }
 
 /** 表紙画像生成プロンプト */

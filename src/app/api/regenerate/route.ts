@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { bookTitle, currentPageIndex, pages } = body
+    const { bookTitle, currentPageIndex, pages, characterStates } = body
 
     if (!bookTitle || currentPageIndex == null || !pages) {
       return NextResponse.json(
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       currentPageIndex,
       pages,
       apiKey,
+      characterStates,
     })
 
     return NextResponse.json({

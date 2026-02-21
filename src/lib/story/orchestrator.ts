@@ -4,7 +4,7 @@ import { momotaroCharacters } from './characters/momotaro-chars'
 import { akazukinCharacters } from './characters/akazukin-chars'
 import { buildConsistencyCheckPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
-import type { CharacterAgent, CharacterReaction, OrchestratorResult, StoryPage } from '@/lib/types'
+import type { CharacterAgent, CharacterReaction, CharacterState, OrchestratorResult, StoryPage } from '@/lib/types'
 
 const TEXT_MODEL = 'gemini-3-flash-preview'
 
@@ -23,8 +23,9 @@ export async function orchestrate(params: {
   modifiedText: string
   previousPages: { pageNumber: number; currentText: string }[]
   apiKey: string
+  characterStates?: CharacterState[]
 }): Promise<OrchestratorResult> {
-  const { bookId, bookTitle, keyword, childUtterance, targetPage, modifiedText, previousPages, apiKey } = params
+  const { bookId, bookTitle, keyword, childUtterance, targetPage, modifiedText, previousPages, apiKey, characterStates } = params
 
   const allCharacters = characterMap[bookId] || []
   const pageNumber = targetPage.pageNumber || targetPage.id
@@ -37,6 +38,14 @@ export async function orchestrate(params: {
   const pageRole = targetPage.pageRole || `ページ${targetPage.id}の物語`
   const fixedElements = targetPage.fixedElements || [pageRole]
 
+  // キャラ状態を引くためのマップ
+  const charStateMap = new Map<string, CharacterState>()
+  if (characterStates) {
+    for (const cs of characterStates) {
+      charStateMap.set(cs.characterId, cs)
+    }
+  }
+
   // キャラクター反応取得と整合性チェックを並列実行
   const [reactions, consistencyResult] = await Promise.all([
     // キャラクター反応
@@ -48,7 +57,8 @@ export async function orchestrate(params: {
               keyword,
               modifiedText,
               bookTitle,
-              apiKey
+              apiKey,
+              charStateMap.get(char.id)
             ).catch((error) => {
               console.warn(`[Orchestrator] Character ${char.id} reaction failed:`, error)
               return {
@@ -71,6 +81,8 @@ export async function orchestrate(params: {
       modifiedText,
       childUtterance,
       apiKey,
+      characterStates,
+      pageNumber,
     }),
   ])
 
@@ -100,6 +112,7 @@ export async function orchestrate(params: {
     modifiedText: finalText,
     characterReactions: validReactions,
     imagePromptAdditions,
+    characterStateUpdates: consistencyResult.characterUpdates,
   }
 }
 
@@ -112,8 +125,10 @@ async function checkConsistency(params: {
   modifiedText: string
   childUtterance?: string
   apiKey: string
-}): Promise<{ approved: boolean; correctedText: string }> {
-  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, apiKey } = params
+  characterStates?: CharacterState[]
+  pageNumber?: number
+}): Promise<{ approved: boolean; correctedText: string; characterUpdates?: CharacterState[] }> {
+  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, apiKey, characterStates, pageNumber } = params
 
   try {
     const genai = new GoogleGenAI({ apiKey })
@@ -125,6 +140,8 @@ async function checkConsistency(params: {
       previousPages,
       modifiedText,
       childUtterance,
+      characterStates,
+      pageNumber,
     })
 
     const response = await genai.models.generateContent({
@@ -135,12 +152,58 @@ async function checkConsistency(params: {
 
     const result = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'OK'
 
-    if (result === 'OK') {
-      return { approved: true, correctedText: modifiedText }
-    }
+    // JSON形式のレスポンスをパース
+    try {
+      // コードブロック (```json ... ```) を除去
+      const jsonStr = result.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')
+      const parsed = JSON.parse(jsonStr) as {
+        approved: boolean
+        correctedText?: string
+        characterUpdates?: {
+          characterId: string
+          currentAppearance: string
+          currentPersonality: string
+          changeDescription?: string
+        }[]
+      }
 
-    // 修正版テキストが返された（リテラル \n を改行に変換）
-    return { approved: false, correctedText: result.replace(/\\n/g, '\n') }
+      // キャラクター状態を CharacterState[] に変換
+      const characterUpdates: CharacterState[] | undefined = parsed.characterUpdates?.map((cu) => {
+        // 既存の状態があればマージ
+        const existing = characterStates?.find((cs) => cs.characterId === cu.characterId)
+        const newChanges = cu.changeDescription
+          ? [
+              ...(existing?.changes || []),
+              {
+                pageNumber: pageNumber || 0,
+                description: cu.changeDescription,
+                timestamp: Date.now(),
+              },
+            ]
+          : existing?.changes || []
+
+        return {
+          characterId: cu.characterId,
+          currentAppearance: cu.currentAppearance,
+          currentPersonality: cu.currentPersonality,
+          relationshipChanges: existing?.relationshipChanges || [],
+          changes: newChanges,
+        }
+      })
+
+      if (parsed.approved) {
+        return { approved: true, correctedText: modifiedText, characterUpdates }
+      }
+
+      const corrected = (parsed.correctedText || modifiedText).replace(/\\n/g, '\n')
+      return { approved: false, correctedText: corrected, characterUpdates }
+    } catch {
+      // JSON パース失敗 → 旧形式フォールバック
+      if (result === 'OK') {
+        return { approved: true, correctedText: modifiedText }
+      }
+      return { approved: false, correctedText: result.replace(/\\n/g, '\n') }
+    }
   } catch (error) {
     console.warn('[Orchestrator] Consistency check failed, approving as-is:', error)
     return { approved: true, correctedText: modifiedText }

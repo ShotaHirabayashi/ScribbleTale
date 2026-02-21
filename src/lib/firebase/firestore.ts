@@ -11,7 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from './config'
-import type { StoryPage, Modification } from '@/lib/types'
+import type { StoryPage, Modification, CharacterState } from '@/lib/types'
 
 const STORIES_COLLECTION = 'stories'
 const SHARE_TOKENS_COLLECTION = 'shareTokens'
@@ -22,6 +22,7 @@ interface FirestoreStoryData {
   isShared: boolean
   pages: StoryPage[]
   modifications: Modification[]
+  characterStates?: CharacterState[]
   title?: string
   authorName?: string
   bgColor?: string
@@ -163,15 +164,21 @@ export async function getStoryById(
 export async function updateStoryPages(
   storyId: string,
   pages: StoryPage[],
-  modifications: Modification[]
+  modifications: Modification[],
+  characterStates?: CharacterState[]
 ): Promise<void> {
   const storyRef = doc(collection(db, STORIES_COLLECTION), storyId)
 
-  await updateDoc(storyRef, {
+  const updateData: Record<string, unknown> = {
     pages,
     modifications,
     updatedAt: serverTimestamp(),
-  })
+  }
+  if (characterStates !== undefined) {
+    updateData.characterStates = characterStates
+  }
+
+  await updateDoc(storyRef, updateData)
 }
 
 /** セッションを新規作成（ページデータなし、IDだけ発行） */
@@ -185,6 +192,7 @@ export async function createStorySession(bookId: string): Promise<string> {
     isShared: false,
     pages: [],
     modifications: [],
+    characterStates: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   } satisfies FirestoreStoryData)
@@ -197,7 +205,7 @@ export async function restoreOrInitSession(
   sessionId: string,
   bookId: string,
   initialPages: StoryPage[]
-): Promise<{ storyId: string; pages: StoryPage[]; modifications: Modification[] }> {
+): Promise<{ storyId: string; pages: StoryPage[]; modifications: Modification[]; characterStates: CharacterState[] }> {
   try {
     const existing = await getStoryById(sessionId)
     if (existing && existing.pages.length > 0) {
@@ -205,6 +213,7 @@ export async function restoreOrInitSession(
         storyId: existing.id,
         pages: existing.pages,
         modifications: existing.modifications,
+        characterStates: existing.characterStates || [],
       }
     }
   } catch (error) {
@@ -222,6 +231,7 @@ export async function restoreOrInitSession(
     storyId: sessionId,
     pages: initialPages,
     modifications: [],
+    characterStates: [],
   }
 }
 

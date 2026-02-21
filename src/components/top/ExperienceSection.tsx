@@ -31,7 +31,7 @@ const journeySteps = [
   {
     number: 2,
     label: "はなす",
-    title: "「ももたろうが そらを とんだら…？」",
+    title: "「ももたろうが おにと なかよしに なったら…？」",
     description:
       "おもいついたこと、なんでも はなしてみて！",
     icon: (
@@ -59,7 +59,7 @@ const journeySteps = [
     label: "かく",
     title: "きみの え が えほんに でてくる！",
     description:
-      "かいた ドラゴンが おはなしの なかで うごきだすよ。",
+      "おおかみを おかしやさんに してみよう！",
     icon: (
       <svg
         width="28"

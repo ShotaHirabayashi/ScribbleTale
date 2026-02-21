@@ -151,3 +151,133 @@ export function getBgmPrompts(bookId: string): Record<number, MusicPromptConfig>
       return momotaroBgmPrompts
   }
 }
+
+// ── 雰囲気マッピング定義 ──
+
+interface MoodMapping {
+  keywords: string[]
+  promptText: string
+  bpm: number
+  density: number
+  brightness: number
+}
+
+const MOOD_MAPPINGS: MoodMapping[] = [
+  {
+    keywords: ['なかよし', '友達', 'ともだち', '仲良し', '握手', '一緒', 'いっしょ', '仲間', 'なかま', '助け合', 'たすけあ'],
+    promptText: 'warm friendship, gentle harmony, peaceful togetherness, soft strings',
+    bpm: 88,
+    density: 0.4,
+    brightness: 0.7,
+  },
+  {
+    keywords: ['たべもの', '食べ物', 'ごはん', 'おかし', 'お菓子', 'ケーキ', 'りんご', 'きびだんご', 'パン', 'クッキー', 'おべんとう'],
+    promptText: 'playful cooking, sweet melody, cheerful kitchen, bouncy rhythm',
+    bpm: 108,
+    density: 0.5,
+    brightness: 0.8,
+  },
+  {
+    keywords: ['冒険', 'ぼうけん', '飛ぶ', 'とぶ', '空', 'そら', '旅', 'たび', '走る', 'はしる', 'ロケット', '探検', 'たんけん'],
+    promptText: 'soaring adventure, wind instruments, exciting journey, dynamic brass',
+    bpm: 130,
+    density: 0.6,
+    brightness: 0.7,
+  },
+  {
+    keywords: ['こわい', '怖い', 'おばけ', 'ゆうれい', '暗い', 'くらい', '不思議', 'ふしぎ', 'まほう', '魔法', 'ひみつ'],
+    promptText: 'mysterious atmosphere, curious exploration, enchanted sounds, whimsical chimes',
+    bpm: 76,
+    density: 0.3,
+    brightness: 0.3,
+  },
+  {
+    keywords: ['うれしい', '嬉しい', 'たのしい', '楽しい', 'わらう', '笑う', 'にこにこ', 'パーティ', 'おまつり', '祭り'],
+    promptText: 'joyful celebration, happy melody, festive energy, bright bells',
+    bpm: 120,
+    density: 0.6,
+    brightness: 0.8,
+  },
+  {
+    keywords: ['かなしい', '悲しい', 'なく', '泣く', 'さみしい', '寂しい', 'わかれ', '別れ', 'さよなら'],
+    promptText: 'gentle melancholy, tender piano, bittersweet emotion, soft rain',
+    bpm: 68,
+    density: 0.3,
+    brightness: 0.4,
+  },
+  {
+    keywords: ['つよい', '強い', 'たたかう', '戦う', 'まもる', '守る', 'ヒーロー', 'ゆうき', '勇気', 'パンチ', 'キック'],
+    promptText: 'heroic battle, powerful drums, courageous brass, epic energy',
+    bpm: 140,
+    density: 0.7,
+    brightness: 0.6,
+  },
+  {
+    keywords: ['ねる', '寝る', 'おやすみ', 'ゆめ', '夢', 'ほし', '星', 'つき', '月', 'よる', '夜'],
+    promptText: 'dreamy lullaby, gentle stars, peaceful night, soft music box',
+    bpm: 64,
+    density: 0.2,
+    brightness: 0.5,
+  },
+  {
+    keywords: ['うみ', '海', 'さかな', '魚', 'みず', '水', 'およぐ', '泳ぐ', 'ふね', '船', 'にじ', '虹'],
+    promptText: 'ocean waves, flowing water, aquatic melody, serene harp',
+    bpm: 84,
+    density: 0.4,
+    brightness: 0.6,
+  },
+  {
+    keywords: ['どうぶつ', '動物', 'いぬ', '犬', 'ねこ', '猫', 'うさぎ', 'くま', 'とり', '鳥', 'きつね'],
+    promptText: 'playful animals, nature sounds, cheerful woodwinds, forest frolic',
+    bpm: 100,
+    density: 0.5,
+    brightness: 0.7,
+  },
+]
+
+/** 改変テキストからBGMプロンプトを動的生成 */
+export function buildDynamicBgmPrompt(params: {
+  keyword: string
+  modifiedText: string
+  baseConfig: MusicPromptConfig
+}): MusicPromptConfig {
+  const { keyword, modifiedText, baseConfig } = params
+  const combinedText = `${keyword} ${modifiedText}`
+
+  // キーワードマッチで雰囲気を判定
+  let bestMatch: MoodMapping | null = null
+  let bestScore = 0
+
+  for (const mood of MOOD_MAPPINGS) {
+    let score = 0
+    for (const kw of mood.keywords) {
+      if (combinedText.includes(kw)) {
+        score++
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score
+      bestMatch = mood
+    }
+  }
+
+  if (bestMatch) {
+    console.log('[music-prompts] Dynamic BGM mood detected:', bestMatch.promptText, 'score:', bestScore)
+    return {
+      prompts: [{ text: bestMatch.promptText, weight: 1.0 }],
+      generationConfig: {
+        ...baseConfig.generationConfig,
+        bpm: bestMatch.bpm,
+        density: bestMatch.density,
+        brightness: bestMatch.brightness,
+      },
+    }
+  }
+
+  // マッチなし → キーワードを英語的に組み込んだデフォルトプロンプト
+  console.log('[music-prompts] Dynamic BGM fallback, keyword:', keyword)
+  return {
+    prompts: [{ text: `gentle fairy tale, ${keyword}, whimsical melody, soft orchestral`, weight: 1.0 }],
+    generationConfig: baseConfig.generationConfig,
+  }
+}

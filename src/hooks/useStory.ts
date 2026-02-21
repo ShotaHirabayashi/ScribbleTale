@@ -22,7 +22,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
           const restoredPages = isRestored
             ? session.pages.map((p) => ({ ...p, textRevealed: true }))
             : session.pages
-          store.initializeStory(bookId, restoredPages, session.storyId)
+          store.initializeStory(bookId, restoredPages, session.storyId, session.characterStates)
         }).catch(() => {
           store.initializeStory(bookId, initialPages, sessionId)
         })
@@ -105,6 +105,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               currentPageIndex: store.currentPageIndex,
               pages: lightPages,
               trigger: store.selectedKeyword!.trigger,
+              characterStates: store.characterStates,
             }),
             signal: modifyController.signal,
           })
@@ -116,6 +117,11 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
           }
 
           const result = await response.json()
+
+          // キャラクター状態更新を反映
+          if (result.characterStateUpdates && result.characterStateUpdates.length > 0) {
+            store.updateCharacterStates(result.characterStateUpdates)
+          }
 
           // テキスト先行表示: 即座にテキストを反映し、画像はシマー表示
           store.applyTextFirst(
@@ -234,6 +240,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               bookTitle,
               currentPageIndex: store.currentPageIndex,
               pages: lightPages,
+              characterStates: store.characterStates,
             }),
             signal: regenController.signal,
           })

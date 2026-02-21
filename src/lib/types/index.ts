@@ -104,12 +104,29 @@ export interface CharacterReaction {
   narrativeImpact: string
 }
 
+/** キャラクター状態の変化記録 */
+export interface CharacterChange {
+  pageNumber: number
+  description: string
+  timestamp: number
+}
+
+/** キャラクターの現在状態（メモリ） */
+export interface CharacterState {
+  characterId: string
+  currentAppearance: string
+  currentPersonality: string
+  relationshipChanges: string[]
+  changes: CharacterChange[]
+}
+
 /** オーケストレーター結果 */
 export interface OrchestratorResult {
   approved: boolean
   modifiedText: string
   characterReactions: CharacterReaction[]
   imagePromptAdditions: string
+  characterStateUpdates?: CharacterState[]
 }
 
 /** 改変履歴 */
@@ -129,6 +146,7 @@ export interface StorySession {
   bookId: 'momotaro' | 'akazukin'
   pages: StoryPage[]
   modifications: Modification[]
+  characterStates?: CharacterState[]
   shareToken: string | null
   isShared: boolean
   createdAt: number

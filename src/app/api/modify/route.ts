@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { bookId, bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger } = body
+    const { bookId, bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger, characterStates } = body
 
     if (!bookId || !bookTitle || !keyword || currentPageIndex == null || !pages || !trigger) {
       const missing = [
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       pages,
       trigger,
       apiKey,
+      characterStates,
     })
 
     // オーケストレーター呼び出し（整合性チェック + キャラクター反応）
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       modifiedText: result.modifiedText,
       previousPages,
       apiKey,
+      characterStates,
     })
 
     // オーケストレーター結果で modification.afterText を同期
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest) {
       modification: finalModification,
       approved: orchResult.approved,
       characterReactions: orchResult.characterReactions,
+      characterStateUpdates: orchResult.characterStateUpdates,
     })
   } catch (error) {
     console.error('[modify] Error:', error)

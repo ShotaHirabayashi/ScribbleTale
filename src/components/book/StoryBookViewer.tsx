@@ -59,12 +59,14 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
 
   // BGM（readOnlyモードでは無効）
   const { isMuted: isSoundMuted, isInitialized: isSoundInitialized } = useSounds()
+  const bgmOverride = useStoryStore((s) => s.bgmOverride)
   useMusicSession({
     bookId: bookId || story.id,
     currentPage,
     isCommentTime: pagePhase === 'commentTime',
     isMuted: readOnly || isSoundMuted,
     isInitialized: !readOnly && isSoundInitialized,
+    bgmOverride: readOnly ? null : bgmOverride,
   })
 
   // 描画入力（readOnlyモードでは無効）

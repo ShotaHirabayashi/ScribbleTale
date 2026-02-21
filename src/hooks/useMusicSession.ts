@@ -16,6 +16,7 @@ interface UseMusicSessionOptions {
   isCommentTime: boolean
   isMuted: boolean
   isInitialized: boolean // SoundProvider の初期化フラグ
+  bgmOverride?: MusicPromptConfig | null
 }
 
 export function useMusicSession({
@@ -24,6 +25,7 @@ export function useMusicSession({
   isCommentTime,
   isMuted,
   isInitialized,
+  bgmOverride,
 }: UseMusicSessionOptions) {
   const managerRef = useRef<MusicSessionManager | null>(null)
   const fallbackRef = useRef<Howl | null>(null)
@@ -146,6 +148,30 @@ export function useMusicSession({
     manager.updatePrompt(config.prompts)
     manager.updateConfig(config.generationConfig)
   }, [currentPage, isConnected, isUsingFallback])
+
+  // BGMオーバーライド（改変時の動的プロンプト差し替え）
+  useEffect(() => {
+    if (!isConnected || isUsingFallback) return
+
+    const manager = managerRef.current
+    if (!manager) return
+
+    if (bgmOverride) {
+      // 改変による動的BGMプロンプトに切り替え
+      console.log('[useMusicSession] Applying bgmOverride:', bgmOverride.prompts[0]?.text)
+      manager.updatePrompt(bgmOverride.prompts)
+      manager.updateConfig(bgmOverride.generationConfig)
+    } else {
+      // null = ページめくり後 → 通常のページプロンプトに復帰
+      const pageNumber = currentPage + 1
+      const config = promptsRef.current[pageNumber]
+      if (config) {
+        console.log('[useMusicSession] Reverting to page prompt, page:', pageNumber)
+        manager.updatePrompt(config.prompts)
+        manager.updateConfig(config.generationConfig)
+      }
+    }
+  }, [bgmOverride, isConnected, isUsingFallback, currentPage])
 
   // コメントタイム中はボリュームを下げる
   useEffect(() => {

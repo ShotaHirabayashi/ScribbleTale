@@ -6,7 +6,9 @@ import type {
   ExtractionResult,
   Modification,
   CommentTimeEndReason,
+  CharacterState,
 } from '@/lib/types'
+import { buildDynamicBgmPrompt, getBgmPrompts, type MusicPromptConfig } from '@/lib/audio/music-prompts'
 
 interface StoryState {
   // ── ページ状態 ──
@@ -39,11 +41,18 @@ interface StoryState {
   isShared: boolean
   isSharing: boolean
 
+  // ── BGMオーバーライド ──
+  bgmOverride: MusicPromptConfig | null
+
+  // ── キャラクター状態メモリ ──
+  characterStates: CharacterState[]
+
   // ── Firestoreセッション ──
   storySessionId: string | null
 
   // ── アクション ──
-  initializeStory: (bookId: string, pages: StoryPage[], storySessionId?: string) => void
+  initializeStory: (bookId: string, pages: StoryPage[], storySessionId?: string, characterStates?: CharacterState[]) => void
+  updateCharacterStates: (updates: CharacterState[]) => void
   setPagePhase: (phase: PagePhase) => void
   startCommentTime: () => void
   endCommentTime: (reason: CommentTimeEndReason) => void
@@ -83,6 +92,7 @@ interface StoryState {
   completeRegeneration: (targetPageIndex: number, newText: string, newIllustration?: string) => void
   clearContextRegenerationFlag: (pageIndex: number) => void
   resetSession: () => void
+  setBgmOverride: (override: MusicPromptConfig | null) => void
   shareStory: () => Promise<string | null>
 }
 
@@ -102,6 +112,8 @@ const initialState = {
   drawingImageBase64: null as string | null,
   recognizedKeyword: null as string | null,
   isRecognizingDrawing: false,
+  bgmOverride: null as MusicPromptConfig | null,
+  characterStates: [] as CharacterState[],
   shareToken: null as string | null,
   isShared: false,
   isSharing: false,
@@ -111,13 +123,42 @@ const initialState = {
 export const useStoryStore = create<StoryState>((set, get) => ({
   ...initialState,
 
-  initializeStory: (bookId, pages, storySessionId) => {
-    console.log('[story-store] initializeStory called, bookId:', bookId, 'pages:', pages.length, 'sessionId:', storySessionId)
+  initializeStory: (bookId, pages, storySessionId, characterStates) => {
+    console.log('[story-store] initializeStory called, bookId:', bookId, 'pages:', pages.length, 'sessionId:', storySessionId, 'characterStates:', characterStates?.length || 0)
     set({
       ...initialState,
       bookId,
       pages,
       storySessionId: storySessionId || null,
+      characterStates: characterStates || [],
+    })
+  },
+
+  updateCharacterStates: (updates) => {
+    set((state) => {
+      const merged = [...state.characterStates]
+      for (const update of updates) {
+        const idx = merged.findIndex((cs) => cs.characterId === update.characterId)
+        if (idx >= 0) {
+          // 既存キャラはマージ
+          merged[idx] = {
+            ...merged[idx],
+            currentAppearance: update.currentAppearance,
+            currentPersonality: update.currentPersonality,
+            relationshipChanges: [
+              ...merged[idx].relationshipChanges,
+              ...update.relationshipChanges.filter(
+                (r) => !merged[idx].relationshipChanges.includes(r)
+              ),
+            ],
+            changes: update.changes,
+          }
+        } else {
+          // 新規キャラは追加
+          merged.push(update)
+        }
+      }
+      return { characterStates: merged }
     })
   },
 
@@ -227,7 +268,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       // Firestore自動保存（バックグラウンド、失敗してもUXに影響しない）
       if (state.storySessionId) {
         import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, newModifications).catch(() => {
+          updateStoryPages(state.storySessionId!, newPages, newModifications, state.characterStates).catch(() => {
             // AbortError等を含む全エラーを静かに無視（UXに影響しない）
           })
         }).catch(() => {
@@ -272,11 +313,27 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         ? [...state.modifications, modification]
         : state.modifications
 
+      // BGMプロンプトを動的差し替え
+      let bgmOverride: MusicPromptConfig | null = null
+      if (state.bookId && state.selectedKeyword) {
+        const pageNumber = targetPageIndex + 1
+        const prompts = getBgmPrompts(state.bookId)
+        const baseConfig = prompts[pageNumber]
+        if (baseConfig) {
+          bgmOverride = buildDynamicBgmPrompt({
+            keyword: state.selectedKeyword.keyword,
+            modifiedText: newText,
+            baseConfig,
+          })
+        }
+      }
+
       return {
         pages: newPages,
         modificationPhase: 'generating_image',
         pagePhase: 'modified',
         modifications: newModifications,
+        bgmOverride,
       }
     })
   },
@@ -296,7 +353,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       // Firestore自動保存（バックグラウンド）
       if (state.storySessionId) {
         import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, state.modifications).catch(() => {})
+          updateStoryPages(state.storySessionId!, newPages, state.modifications, state.characterStates).catch(() => {})
         }).catch(() => {})
       }
 
@@ -321,7 +378,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       // テキストは変更済みなのでFirestore保存
       if (state.storySessionId) {
         import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, state.modifications).catch(() => {})
+          updateStoryPages(state.storySessionId!, newPages, state.modifications, state.characterStates).catch(() => {})
         }).catch(() => {})
       }
 
@@ -436,6 +493,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: null,
       childUtterance: null,
       drawingImageBase64: null,
+      bgmOverride: null,
     })
   },
 
@@ -469,7 +527,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       // Firestore自動保存
       if (state.storySessionId) {
         import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, state.modifications).catch(() => {})
+          updateStoryPages(state.storySessionId!, newPages, state.modifications, state.characterStates).catch(() => {})
         }).catch(() => {})
       }
 
@@ -496,6 +554,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
   resetSession: () => {
     set(initialState)
+  },
+
+  setBgmOverride: (override) => {
+    set({ bgmOverride: override })
   },
 
   shareStory: async () => {
