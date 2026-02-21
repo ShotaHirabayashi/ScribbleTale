@@ -99,7 +99,7 @@ export function BookPage({
   if (isLastPage) {
     return (
       <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 flex-[3]">
           <Image
             src={page.illustration}
             alt={page.alt}
@@ -108,7 +108,7 @@ export function BookPage({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />
         </div>
-        <div className="flex shrink-0 flex-col items-center gap-1 px-4 pb-3 pt-2 sm:gap-2 sm:px-6 sm:pb-4 sm:pt-3 md:px-10">
+        <div className="flex min-h-0 flex-[2] flex-col items-center gap-1 overflow-y-auto px-4 pb-3 pt-2 sm:gap-2 sm:px-6 sm:pb-4 sm:pt-3 md:px-10">
           <StoryText
             text={displayText}
             isActive={isActive}
@@ -126,7 +126,7 @@ export function BookPage({
 
   return (
     <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-[3]">
         <Image
           src={page.illustration}
           alt={page.alt}
@@ -134,7 +134,7 @@ export function BookPage({
           className="object-cover"
         />
       </div>
-      <div className="shrink-0 px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4">
+      <div className="min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4">
         <StoryText
           text={displayText}
           isActive={isActive}
