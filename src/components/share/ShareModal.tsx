@@ -22,16 +22,22 @@ export function ShareModal({
 }: ShareModalProps) {
   const [shareUrl, setShareUrl] = useState(initialShareUrl)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!isOpen) return null
 
   const handleGenerate = async () => {
     setIsGenerating(true)
+    setError(null)
     try {
       const url = await onGenerateShareUrl()
+      if (!url || !url.startsWith('/story/')) {
+        throw new Error('Invalid share URL')
+      }
       setShareUrl(url)
-    } catch (error) {
-      console.error('[ShareModal] Failed to generate share URL:', error)
+    } catch (err) {
+      console.error('[ShareModal] Failed to generate share URL:', err)
+      setError('シェアURLの さくせいに しっぱいしました')
     } finally {
       setIsGenerating(false)
     }
@@ -75,6 +81,9 @@ export function ShareModal({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
+            {error && (
+              <p className="font-serif text-xs text-destructive">{error}</p>
+            )}
             <button
               onClick={handleGenerate}
               disabled={isGenerating}

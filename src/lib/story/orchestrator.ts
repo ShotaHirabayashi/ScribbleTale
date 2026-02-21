@@ -6,7 +6,7 @@ import { buildConsistencyCheckPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
 import type { CharacterAgent, CharacterReaction, OrchestratorResult, StoryPage } from '@/lib/types'
 
-const TEXT_MODEL = 'gemini-2.5-flash-preview-05-20'
+const TEXT_MODEL = 'gemini-3-flash-preview'
 
 const characterMap: Record<string, CharacterAgent[]> = {
   momotaro: momotaroCharacters,

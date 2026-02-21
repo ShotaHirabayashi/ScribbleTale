@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Home } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { SharedStoryViewer } from './SharedStoryViewer'
+import { generateOGDescription } from '@/lib/story/modification-summary'
 
 type Params = Promise<{ shareToken: string }>
 
@@ -24,19 +25,23 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     ? `${storyData.bookId === 'momotaro' ? 'ももたろう' : 'あかずきん'} - みんなの えほん`
     : 'みんなの えほん - ScribbleTale'
 
+  const description = storyData
+    ? generateOGDescription(storyData.bookId, storyData.modifications)
+    : 'AIと子どもが一緒につくった、世界にひとつだけの絵本'
+
   return {
     title: `${title} - ScribbleTale`,
-    description: 'AIと子どもが一緒につくった、世界にひとつだけの絵本',
+    description,
     openGraph: {
       title,
-      description: 'AIと子どもが一緒につくった、世界にひとつだけの絵本',
+      description,
       type: 'article',
       url: `/story/${shareToken}`,
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description: 'AIと子どもが一緒につくった、世界にひとつだけの絵本',
+      description,
     },
   }
 }
@@ -77,7 +82,7 @@ export default async function SharedStoryPage({ params }: { params: Params }) {
 
   return (
     <div className="flex h-dvh flex-col">
-      <SharedStoryViewer story={mergedStory} />
+      <SharedStoryViewer story={mergedStory} authorName="ScribbleTale" />
 
       {/* フッターリンク */}
       <div className="fixed bottom-4 left-4 z-50">

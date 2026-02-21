@@ -5,8 +5,9 @@ import type { Story } from '@/lib/types'
 
 interface SharedStoryViewerProps {
   story: Story
+  authorName?: string
 }
 
-export function SharedStoryViewer({ story }: SharedStoryViewerProps) {
-  return <StoryBookViewer story={story} readOnly />
+export function SharedStoryViewer({ story, authorName }: SharedStoryViewerProps) {
+  return <StoryBookViewer story={story} readOnly authorName={authorName} />
 }

@@ -19,9 +19,10 @@ interface StoryBookViewerProps {
   story: Story
   bookId?: string
   readOnly?: boolean
+  authorName?: string
 }
 
-export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookViewerProps) {
+export function StoryBookViewer({ story, bookId, readOnly = false, authorName }: StoryBookViewerProps) {
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(0)
   const [isFlipping, setIsFlipping] = useState(false)
@@ -252,17 +253,18 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
                     isActive={isPageActive}
                     isCover={isCover}
                     isLastPage={isPageLastPage}
-                    pagePhase={isPageActive ? pagePhase : undefined}
-                    modificationPhase={isPageActive ? modificationPhase : undefined}
+                    readOnly={readOnly}
+                    pagePhase={isPageActive && !readOnly ? pagePhase : undefined}
+                    modificationPhase={isPageActive && !readOnly ? modificationPhase : undefined}
                     commentTimeRemainingMs={commentTimeRemainingMs}
                     childUtterance={childUtterance}
-                    onReadingComplete={isPageActive && !isCover ? handleReadingComplete : undefined}
-                    onStartCommentTime={isPageActive ? handleStartCommentTime : undefined}
-                    onEndCommentTime={isPageActive ? handleEndCommentTime : undefined}
-                    onSkipCommentTime={isPageActive ? handleSkipCommentTime : undefined}
-                    onStartDrawing={isPageActive ? handleStartDrawing : undefined}
-                    onDrawingComplete={isPageActive ? handleDrawingComplete : undefined}
-                    onDrawingCancel={isPageActive ? handleDrawingCancel : undefined}
+                    onReadingComplete={isPageActive && !isCover && !readOnly ? handleReadingComplete : undefined}
+                    onStartCommentTime={isPageActive && !readOnly ? handleStartCommentTime : undefined}
+                    onEndCommentTime={isPageActive && !readOnly ? handleEndCommentTime : undefined}
+                    onSkipCommentTime={isPageActive && !readOnly ? handleSkipCommentTime : undefined}
+                    onStartDrawing={isPageActive && !readOnly ? handleStartDrawing : undefined}
+                    onDrawingComplete={isPageActive && !readOnly ? handleDrawingComplete : undefined}
+                    onDrawingCancel={isPageActive && !readOnly ? handleDrawingCancel : undefined}
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/5 to-transparent" />
@@ -370,6 +372,10 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
               </button>
             </div>
           )
+        ) : readOnly && authorName ? (
+          <p className="font-serif text-[10px] text-background/60 sm:text-xs">
+            さく: {authorName}
+          </p>
         ) : (
           <p className="font-serif text-[10px] text-background/40 sm:text-xs">
             スワイプ または やじるしキーで ページをめくれるよ
@@ -386,7 +392,8 @@ export function StoryBookViewer({ story, bookId, readOnly = false }: StoryBookVi
           shareUrl={shareToken ? `/story/${shareToken}` : null}
           onGenerateShareUrl={async () => {
             const url = await shareStory()
-            return url || ''
+            if (!url) throw new Error('Share URL generation failed')
+            return url
           }}
         />
       )}

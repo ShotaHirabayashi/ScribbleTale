@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { DRAWING_RECOGNITION_PROMPT } from '@/lib/gemini/prompts'
 
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'gemini-3-flash-preview'
 
 export async function POST(request: NextRequest) {
   try {

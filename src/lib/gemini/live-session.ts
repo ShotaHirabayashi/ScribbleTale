@@ -3,10 +3,10 @@
  *
  * 常時接続 + クライアント側ミュート制御
  * Function Calling: extractKeyword + endCommentTime
- * モデル: gemini-2.5-flash-preview-native-audio-dialog
+ * モデル: gemini-2.5-flash-native-audio-preview-12-2025
  */
 
-const LIVE_API_MODEL = 'gemini-2.5-flash-preview-native-audio-dialog'
+const LIVE_API_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025'
 const MAX_RECONNECT_ATTEMPTS = 3
 const BASE_RECONNECT_DELAY_MS = 1000
 
