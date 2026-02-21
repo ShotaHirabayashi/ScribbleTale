@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     // Firestore REST API でストーリーを保存
     try {
       if (existingSession && storyId) {
-        // 既存セッション: メタデータのみ部分更新（pages は自動保存済み）
+        // 既存セッション: updateMaskで指定フィールドのみ部分更新
         const metaData: Record<string, unknown> = {
           bookId,
           shareToken,
@@ -122,6 +122,11 @@ export async function POST(request: NextRequest) {
         if (coverImage) metaData.coverImage = coverImage
         if (bgColor) metaData.bgColor = bgColor
         if (frameStyle) metaData.frameStyle = frameStyle
+        // ページ画像をStorage URLに差し替え済みのデータで上書き
+        if (pages) {
+          metaData.pages = pages
+          metaData.modifications = modifications || []
+        }
 
         await firestorePatch('stories', generatedStoryId, metaData)
       } else {

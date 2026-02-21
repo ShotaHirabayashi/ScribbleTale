@@ -151,16 +151,13 @@ export function CoverCreator({ story }: CoverCreatorProps) {
         storyId,
         bookId: story.id,
         existingSession: isExistingSession,
+        pages: uploadedPages,
+        modifications,
         title: finalTitle,
         authorName: finalAuthor,
         coverImage: finalCoverImage,
         bgColor,
         frameStyle,
-      }
-      // 新規セッションの場合のみ pages と modifications を送信
-      if (!isExistingSession) {
-        shareBody.pages = uploadedPages
-        shareBody.modifications = modifications
       }
 
       const res = await fetch("/api/share", {
