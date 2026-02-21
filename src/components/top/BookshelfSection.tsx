@@ -59,7 +59,7 @@ export function BookshelfSection() {
 
           <div className="text-center">
             <h2 className="font-serif text-xl font-bold text-foreground md:text-2xl">
-              ぼくの ほんだな
+              みんなの ほんだな
             </h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
               つくった えほんが ならんでいるよ。

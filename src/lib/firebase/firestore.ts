@@ -7,7 +7,6 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
   limit as firestoreLimit,
   serverTimestamp,
 } from 'firebase/firestore'
@@ -102,14 +101,30 @@ export async function getSharedStories(
   const q = query(
     collection(db, STORIES_COLLECTION),
     where('isShared', '==', true),
-    orderBy('updatedAt', 'desc'),
     firestoreLimit(max),
   )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => ({
+
+  // タイムアウト付きでクエリ実行（10秒）
+  const snap = await Promise.race([
+    getDocs(q),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Firestore query timeout')), 10000)
+    ),
+  ])
+
+  const results = snap.docs.map((d) => ({
     id: d.id,
     ...(d.data() as FirestoreStoryData),
   }))
+
+  // クライアント側で updatedAt 降順ソート（複合インデックス不要にするため）
+  results.sort((a, b) => {
+    const aTime = (a.updatedAt as { seconds?: number })?.seconds ?? 0
+    const bTime = (b.updatedAt as { seconds?: number })?.seconds ?? 0
+    return bTime - aTime
+  })
+
+  return results
 }
 
 /** ストーリーIDで直接取得 */

@@ -23,22 +23,19 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let cancelled = false
-
     async function load() {
       try {
         const { getSharedStories } = await import("@/lib/firebase/firestore")
         const data = await getSharedStories(50)
-        if (!cancelled) setStories(data as SharedStoryItem[])
+        setStories(data as SharedStoryItem[])
       } catch (err) {
-        console.warn("[library] Failed to load stories:", err)
+        console.error("[library] Failed to load stories:", err)
       } finally {
-        if (!cancelled) setLoading(false)
+        setLoading(false)
       }
     }
 
     load()
-    return () => { cancelled = true }
   }, [])
 
   return (

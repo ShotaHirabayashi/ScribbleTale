@@ -16,7 +16,7 @@ export function LibraryHeader() {
       <div className="flex items-center gap-2">
         <BookOpen className="h-5 w-5 text-primary" />
         <h1 className="font-serif text-lg font-bold text-foreground md:text-xl">
-          ぼくの ほんだな
+          みんなの ほんだな
         </h1>
       </div>
 
