@@ -1,46 +1,41 @@
-import { StoryBookViewer } from '@/components/book/StoryBookViewer'
-import { momotaroStory } from '@/lib/story/momotaro'
-import { akazukinStory } from '@/lib/story/akazukin'
-import { notFound } from 'next/navigation'
-import type { Metadata } from 'next'
-import type { Story } from '@/lib/types'
+'use client'
 
-const storyMap: Record<string, Story> = {
-  momotaro: momotaroStory,
-  akazukin: akazukinStory,
-}
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-const metadataMap: Record<string, { title: string; description: string }> = {
-  momotaro: {
-    title: 'ももたろう - ScribbleTale',
-    description: 'ももたろうの絵本をよもう',
-  },
-  akazukin: {
-    title: 'あかずきん - ScribbleTale',
-    description: 'あかずきんの絵本をよもう',
-  },
-}
+const validBookIds = ['momotaro', 'akazukin']
 
-type Params = Promise<{ bookId: string }>
+export default function BookEntryPage({ params }: { params: Promise<{ bookId: string }> }) {
+  const router = useRouter()
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { bookId } = await params
-  const meta = metadataMap[bookId]
-  if (!meta) return {}
-  return meta
-}
+  useEffect(() => {
+    params.then(({ bookId }) => {
+      if (!validBookIds.includes(bookId)) {
+        router.replace('/')
+        return
+      }
 
-export async function generateStaticParams() {
-  return [{ bookId: 'momotaro' }, { bookId: 'akazukin' }]
-}
+      // Firestoreにセッション作成 → セッションID付きURLにリダイレクト
+      import('@/lib/firebase/firestore').then(({ createStorySession }) => {
+        createStorySession(bookId).then((sessionId) => {
+          router.replace(`/book/${bookId}/${sessionId}`)
+        }).catch(() => {
+          // Firestore失敗時はランダムID
+          const fallbackId = `local-${Date.now()}`
+          router.replace(`/book/${bookId}/${fallbackId}`)
+        })
+      }).catch(() => {
+        const fallbackId = `local-${Date.now()}`
+        router.replace(`/book/${bookId}/${fallbackId}`)
+      })
+    })
+  }, [params, router])
 
-export default async function BookPage({ params }: { params: Params }) {
-  const { bookId } = await params
-  const story = storyMap[bookId]
-
-  if (!story) {
-    notFound()
-  }
-
-  return <StoryBookViewer story={story} bookId={bookId} />
+  return (
+    <div className="flex h-screen items-center justify-center bg-[var(--storybook-brown)]">
+      <div className="text-center font-serif text-[var(--storybook-cream)]">
+        <p className="text-lg">えほんを じゅんびしているよ...</p>
+      </div>
+    </div>
+  )
 }

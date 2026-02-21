@@ -29,6 +29,9 @@ interface StoryState {
   modificationPhase: ModificationPhase
   modifications: Modification[]
 
+  // ── キーワード抽出中フラグ ──
+  isExtractingKeyword: boolean
+
   // ── 描画 ──
   drawingImageBase64: string | null
   recognizedKeyword: string | null
@@ -49,6 +52,7 @@ interface StoryState {
   endCommentTime: (reason: CommentTimeEndReason) => void
   setCommentTimeRemaining: (ms: number) => void
   setChildUtterance: (utterance: string | null) => void
+  setIsExtractingKeyword: (flag: boolean) => void
   addPendingKeyword: (keyword: ExtractionResult) => void
   selectKeyword: (keyword: ExtractionResult | null) => void
   startModification: () => void
@@ -73,6 +77,7 @@ interface StoryState {
   goToPrevPage: () => void
   syncPageIndex: (index: number) => void
   markTextRevealed: (pageIndex: number) => void
+  completeRegeneration: (targetPageIndex: number, newText: string, newIllustration?: string) => void
   clearContextRegenerationFlag: (pageIndex: number) => void
   resetSession: () => void
   shareStory: () => Promise<string | null>
@@ -91,6 +96,7 @@ const initialState = {
   selectedKeyword: null as ExtractionResult | null,
   modificationPhase: 'idle' as ModificationPhase,
   modifications: [] as Modification[],
+  isExtractingKeyword: false,
   drawingImageBase64: null as string | null,
   recognizedKeyword: null as string | null,
   isRecognizingDrawing: false,
@@ -104,6 +110,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   ...initialState,
 
   initializeStory: (bookId, pages, storySessionId) => {
+    console.log('[story-store] initializeStory called, bookId:', bookId, 'pages:', pages.length, 'sessionId:', storySessionId)
     set({
       ...initialState,
       bookId,
@@ -129,7 +136,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   endCommentTime: (reason) => {
-    const { pendingKeywords } = get()
+    const { pendingKeywords, isExtractingKeyword } = get()
     const keyword = pendingKeywords.length > 0 ? pendingKeywords[pendingKeywords.length - 1] : null
 
     set({
@@ -139,15 +146,17 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     })
 
     if (keyword) {
-      // キーワードが抽出されていれば確認フェーズへ
-      set({ pagePhase: 'confirming' })
+      // キーワードが抽出されていれば即座に改変開始（確認画面スキップ）
+      set({ pagePhase: 'modifying' })
     } else if (reason === 'manual_skip') {
       // 明示的スキップ → 次ページへ
       set({ pagePhase: 'transitioning' })
+    } else if (isExtractingKeyword) {
+      // キーワード抽出API呼び出し中 → ローディング表示のまま待機
+      // addPendingKeyword で到着時に modifying へ遷移する
+      set({ pagePhase: 'modifying', modificationPhase: 'orchestrating' })
     } else {
-      // end_keyword / タイムアウト等 → ボタンに戻す（再挑戦可能）
-      // ※ end_keywordでキーワードがない場合は非同期抽出待ちの可能性がある
-      //   addPendingKeyword で後から confirming に遷移する
+      // キーワードなし＆抽出中でもない → ボタンに戻す（再挑戦可能）
       set({ pagePhase: 'readingComplete' })
     }
   },
@@ -160,15 +169,27 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ childUtterance: utterance })
   },
 
+  setIsExtractingKeyword: (flag) => {
+    set({ isExtractingKeyword: flag })
+    // 抽出完了（false）でキーワードなし＆まだ modifying で待機中 → readingComplete にフォールバック
+    if (!flag) {
+      const { pagePhase, selectedKeyword } = get()
+      if (pagePhase === 'modifying' && !selectedKeyword) {
+        set({ pagePhase: 'readingComplete', modificationPhase: 'idle' })
+      }
+    }
+  },
+
   addPendingKeyword: (keyword) => {
     const { pagePhase } = get()
     set((state) => ({
       pendingKeywords: [...state.pendingKeywords, keyword],
+      isExtractingKeyword: false,
     }))
 
-    // コメントタイム終了後に非同期でキーワードが到着した場合 → 自動で確認フェーズへ
-    if (pagePhase === 'readingComplete') {
-      set({ selectedKeyword: keyword, pagePhase: 'confirming' })
+    // コメントタイム終了後に非同期でキーワードが到着した場合 → 即座に改変開始
+    if (pagePhase === 'readingComplete' || pagePhase === 'modifying') {
+      set({ selectedKeyword: keyword, pagePhase: 'modifying' })
     }
   },
 
@@ -205,11 +226,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         // 波及再生成(skipPropagation=true)では連鎖を防ぐためフラグを立てない
         if (!skipPropagation) {
           for (let i = targetPageIndex + 1; i < newPages.length; i++) {
-            if ((newPages[i].modificationCount ?? 0) === 0) {
-              newPages[i] = {
-                ...newPages[i],
-                needsContextRegeneration: true,
-              }
+            newPages[i] = {
+              ...newPages[i],
+              needsContextRegeneration: true,
             }
           }
         }
@@ -356,6 +375,35 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         }
       }
       return { pages: newPages }
+    })
+  },
+
+  completeRegeneration: (targetPageIndex, newText, newIllustration) => {
+    set((state) => {
+      const newPages = [...state.pages]
+      if (targetPageIndex >= 0 && targetPageIndex < newPages.length) {
+        newPages[targetPageIndex] = {
+          ...newPages[targetPageIndex],
+          currentText: newText,
+          isModified: true,
+          needsContextRegeneration: false,
+          textRevealed: false,
+          ...(newIllustration ? { illustration: newIllustration } : {}),
+        }
+      }
+
+      // Firestore自動保存
+      if (state.storySessionId) {
+        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+          updateStoryPages(state.storySessionId!, newPages, state.modifications).catch(() => {})
+        }).catch(() => {})
+      }
+
+      return {
+        pages: newPages,
+        modificationPhase: 'idle',
+        pagePhase: 'reading',
+      }
     })
   },
 

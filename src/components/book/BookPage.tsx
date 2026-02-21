@@ -71,9 +71,7 @@ export function BookPage({
   const displayText = page.currentText || page.text
 
   // ボタン表示条件
-  const canShowCommentTimeButton =
-    onStartCommentTime && onStartDrawing
-    && (page.modificationCount ?? 0) < 2
+  const canShowCommentTimeButton = onStartCommentTime && onStartDrawing
 
   if (isCover) {
     return (

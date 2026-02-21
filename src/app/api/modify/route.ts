@@ -16,8 +16,17 @@ export async function POST(request: NextRequest) {
     const { bookId, bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger } = body
 
     if (!bookId || !bookTitle || !keyword || currentPageIndex == null || !pages || !trigger) {
+      const missing = [
+        !bookId && 'bookId',
+        !bookTitle && 'bookTitle',
+        !keyword && 'keyword',
+        currentPageIndex == null && 'currentPageIndex',
+        !pages && 'pages',
+        !trigger && 'trigger',
+      ].filter(Boolean)
+      console.error('[modify] Missing fields:', missing, { bookId, bookTitle, keyword, currentPageIndex, trigger, pagesLength: pages?.length })
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: `Missing required fields: ${missing.join(', ')}` },
         { status: 400 }
       )
     }
@@ -46,16 +55,23 @@ export async function POST(request: NextRequest) {
       bookId,
       bookTitle,
       keyword,
+      childUtterance,
       targetPage,
       modifiedText: result.modifiedText,
       previousPages,
       apiKey,
     })
 
+    // オーケストレーター結果で modification.afterText を同期
+    const finalModification = {
+      ...result.modification,
+      afterText: orchResult.modifiedText,
+    }
+
     return NextResponse.json({
       modifiedText: orchResult.modifiedText,
       targetPageIndex: result.targetPageIndex,
-      modification: result.modification,
+      modification: finalModification,
       approved: orchResult.approved,
       characterReactions: orchResult.characterReactions,
     })

@@ -18,12 +18,13 @@ export async function orchestrate(params: {
   bookId: string
   bookTitle: string
   keyword: string
+  childUtterance?: string
   targetPage: StoryPage
   modifiedText: string
   previousPages: { pageNumber: number; currentText: string }[]
   apiKey: string
 }): Promise<OrchestratorResult> {
-  const { bookId, bookTitle, keyword, targetPage, modifiedText, previousPages, apiKey } = params
+  const { bookId, bookTitle, keyword, childUtterance, targetPage, modifiedText, previousPages, apiKey } = params
 
   const allCharacters = characterMap[bookId] || []
   const pageNumber = targetPage.pageNumber || targetPage.id
@@ -68,6 +69,7 @@ export async function orchestrate(params: {
       fixedElements,
       previousPages,
       modifiedText,
+      childUtterance,
       apiKey,
     }),
   ])
@@ -108,9 +110,10 @@ async function checkConsistency(params: {
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
   modifiedText: string
+  childUtterance?: string
   apiKey: string
 }): Promise<{ approved: boolean; correctedText: string }> {
-  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, apiKey } = params
+  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, apiKey } = params
 
   try {
     const genai = new GoogleGenAI({ apiKey })
@@ -121,6 +124,7 @@ async function checkConsistency(params: {
       fixedElements,
       previousPages,
       modifiedText,
+      childUtterance,
     })
 
     const response = await genai.models.generateContent({

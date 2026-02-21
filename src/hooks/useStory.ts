@@ -3,44 +3,46 @@ import { useStoryStore } from '@/stores/story-store'
 import type { StoryPage } from '@/lib/types'
 
 /** Zustand storeのヘルパーフック */
-export function useStory(bookId?: string, initialPages?: StoryPage[]) {
+export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?: string) {
   const store = useStoryStore()
   const modificationInProgressRef = useRef(false)
   const regenerationInProgressRef = useRef(false)
+  const initRef = useRef(false)
 
-  // ストーリー初期化（Firestoreセッション復元）
+  // ストーリー初期化（1回だけ実行）
   useEffect(() => {
-    if (bookId && initialPages && store.bookId !== bookId) {
-      import('@/lib/firebase/firestore').then(({ getOrCreateStorySession }) => {
-        getOrCreateStorySession(bookId, initialPages).then((session) => {
-          store.initializeStory(bookId, session.pages, session.storyId)
+    if (!bookId || !initialPages || initRef.current) return
+    initRef.current = true
+
+    if (sessionId) {
+      // セッションID付きURL → Firestoreから復元
+      import('@/lib/firebase/firestore').then(({ restoreOrInitSession }) => {
+        restoreOrInitSession(sessionId, bookId, initialPages).then((session) => {
+          const isRestored = session.pages.some((p) => p.isModified)
+          const restoredPages = isRestored
+            ? session.pages.map((p) => ({ ...p, textRevealed: true }))
+            : session.pages
+          store.initializeStory(bookId, restoredPages, session.storyId)
         }).catch(() => {
-          // Firestore接続失敗時はローカルのみで初期化
-          store.initializeStory(bookId, initialPages)
+          store.initializeStory(bookId, initialPages, sessionId)
         })
       }).catch(() => {
-        // dynamic import失敗時もローカルで初期化
-        store.initializeStory(bookId, initialPages)
+        store.initializeStory(bookId, initialPages, sessionId)
       })
+    } else {
+      // セッションIDなし（readOnlyや旧URL）→ ローカルのみ
+      store.initializeStory(bookId, initialPages)
     }
-  }, [bookId, initialPages, store])
+  }, [bookId, initialPages, sessionId, store])
 
   /** テキスト文字送り完了時のハンドラ */
   const handleReadingComplete = useCallback(() => {
-    if (store.pagePhase === 'reading') {
-      const currentPage = store.pages[store.currentPageIndex]
-      const alreadyRevealed = currentPage?.textRevealed
+    const phase = store.pagePhase
+    console.log('[useStory] handleReadingComplete, phase:', phase)
+    if (phase === 'reading') {
       store.markTextRevealed(store.currentPageIndex)
-      const modCount = currentPage?.modificationCount ?? 0
-      if (modCount >= 2 && !alreadyRevealed) {
-        // 2回改変済み & 初回表示 → コメントタイムなしで自動ページ送り
-        store.setPagePhase('transitioning')
-      } else {
-        // 既読ページに戻った場合は readingComplete で止める
-        store.setPagePhase('readingComplete')
-      }
-    }
-    if (store.pagePhase === 'modified') {
+      store.setPagePhase('readingComplete')
+    } else if (phase === 'modified') {
       // 改変テキスト文字送り完了 → 自動でページ遷移
       store.markTextRevealed(store.currentPageIndex)
       store.setPagePhase('transitioning')
@@ -109,21 +111,24 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           clearTimeout(modifyTimer)
 
           if (!response.ok) {
-            throw new Error(`Modify API failed: ${response.status}`)
+            const errBody = await response.json().catch(() => ({}))
+            throw new Error(`Modify API failed: ${response.status} - ${errBody.error || 'unknown'}`)
           }
 
           store.setModificationPhase('generating_image')
 
           const result = await response.json()
 
-          // drawing トリガーの場合は挿絵に描画を合成
+          // 挿絵を改変テキストに合わせて再生成
           let newIllustration: string | undefined
+          const targetPage = store.pages[result.targetPageIndex]
+
           if (
             store.selectedKeyword?.trigger === 'drawing' &&
             store.drawingImageBase64
           ) {
+            // drawing トリガー: 描画を参照して画像編集
             try {
-              const targetPage = store.pages[result.targetPageIndex]
               const editController = new AbortController()
               const editTimer = setTimeout(() => editController.abort(), 60000)
               const editResponse = await fetch('/api/edit-image', {
@@ -145,6 +150,28 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
             } catch (imgError) {
               console.warn('[useStory] Image edit failed, continuing without:', imgError)
             }
+          } else {
+            // voice トリガー: 改変テキストに合わせて画像を新規生成
+            try {
+              const imgController = new AbortController()
+              const imgTimer = setTimeout(() => imgController.abort(), 60000)
+              const imgResponse = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  sceneDescription: result.modifiedText,
+                  keyword: store.selectedKeyword?.keyword,
+                }),
+                signal: imgController.signal,
+              })
+              clearTimeout(imgTimer)
+              if (imgResponse.ok) {
+                const imgResult = await imgResponse.json()
+                newIllustration = `data:${imgResult.mimeType};base64,${imgResult.imageBase64}`
+              }
+            } catch (imgError) {
+              console.warn('[useStory] Image generation failed, continuing without:', imgError)
+            }
           }
 
           // 改変完了
@@ -156,9 +183,11 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
           )
         } catch (error) {
           console.error('[useStory] Modification failed:', error)
-          // エラー時は readingComplete に戻す（transitioning にすると次ページに進んでしまう）
+          // エラー時は readingComplete に戻す
           store.setModificationPhase('idle')
           store.setPagePhase('readingComplete')
+          // ユーザー向けエラー表示（コンソールのみ）
+          console.error('[useStory] keyword:', store.selectedKeyword?.keyword, 'utterance:', store.selectedKeyword?.childUtterance)
         } finally {
           modificationInProgressRef.current = false
         }
@@ -169,11 +198,11 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
   }, [store.pagePhase, store.selectedKeyword, store])
 
   // 波及再生成: reading フェーズ + needsContextRegeneration → 自動再生成
+  const currentPageNeedsRegen = store.pages[store.currentPageIndex]?.needsContextRegeneration
   useEffect(() => {
-    const currentPage = store.pages[store.currentPageIndex]
     if (
       store.pagePhase === 'reading' &&
-      currentPage?.needsContextRegeneration &&
+      currentPageNeedsRegen &&
       !regenerationInProgressRef.current
     ) {
       regenerationInProgressRef.current = true
@@ -208,15 +237,31 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
 
           const result = await response.json()
 
-          // フラグをクリアしてから改変完了（波及再生成なので連鎖伝播しない）
-          store.clearContextRegenerationFlag(store.currentPageIndex)
-          store.completeModification(
-            result.targetPageIndex,
-            result.modifiedText,
-            undefined,
-            undefined,
-            true // skipPropagation: 波及再生成の連鎖を防止
-          )
+          // 波及再生成されたテキストに合わせて挿絵も再生成
+          store.setModificationPhase('generating_image')
+          let newIllustration: string | undefined
+          try {
+            const imgController = new AbortController()
+            const imgTimer = setTimeout(() => imgController.abort(), 60000)
+            const imgResponse = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sceneDescription: result.modifiedText,
+              }),
+              signal: imgController.signal,
+            })
+            clearTimeout(imgTimer)
+            if (imgResponse.ok) {
+              const imgResult = await imgResponse.json()
+              newIllustration = `data:${imgResult.mimeType};base64,${imgResult.imageBase64}`
+            }
+          } catch (imgError) {
+            console.warn('[useStory] Regeneration image failed, continuing without:', imgError)
+          }
+
+          // 波及再生成完了: reading に戻し、ユーザーが自分でページ送りする
+          store.completeRegeneration(result.targetPageIndex, result.modifiedText, newIllustration)
         } catch (error) {
           console.error('[useStory] Context regeneration failed:', error)
           store.clearContextRegenerationFlag(store.currentPageIndex)
@@ -228,7 +273,7 @@ export function useStory(bookId?: string, initialPages?: StoryPage[]) {
 
       runRegeneration()
     }
-  }, [store.pagePhase, store.currentPageIndex, store])
+  }, [store.pagePhase, store.currentPageIndex, currentPageNeedsRegen, store])
 
   // 注: transitioning → ページ送りはStoryBookViewer側で処理
   // （StoryBookViewerがtransitioning検知 → flip → 700ms後にsyncPageIndex → reading）

@@ -174,7 +174,58 @@ export async function updateStoryPages(
   })
 }
 
-/** セッションの取得または新規作成 */
+/** セッションを新規作成（ページデータなし、IDだけ発行） */
+export async function createStorySession(bookId: string): Promise<string> {
+  const storyRef = doc(collection(db, STORIES_COLLECTION))
+  const storyId = storyRef.id
+
+  await setDoc(storyRef, {
+    bookId,
+    shareToken: '',
+    isShared: false,
+    pages: [],
+    modifications: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  } satisfies FirestoreStoryData)
+
+  return storyId
+}
+
+/** セッションIDでページデータを復元（なければ初期データで初期化） */
+export async function restoreOrInitSession(
+  sessionId: string,
+  bookId: string,
+  initialPages: StoryPage[]
+): Promise<{ storyId: string; pages: StoryPage[]; modifications: Modification[] }> {
+  try {
+    const existing = await getStoryById(sessionId)
+    if (existing && existing.pages.length > 0) {
+      return {
+        storyId: existing.id,
+        pages: existing.pages,
+        modifications: existing.modifications,
+      }
+    }
+  } catch (error) {
+    console.warn('[firestore] Failed to restore session:', error)
+  }
+
+  // セッションはあるがページが空 or 取得失敗 → 初期データで更新
+  try {
+    await updateStoryPages(sessionId, initialPages, [])
+  } catch {
+    // 更新失敗してもローカルで続行
+  }
+
+  return {
+    storyId: sessionId,
+    pages: initialPages,
+    modifications: [],
+  }
+}
+
+/** @deprecated URL にセッションIDを含める方式に移行。互換性のため残す */
 export async function getOrCreateStorySession(
   bookId: string,
   initialPages: StoryPage[]

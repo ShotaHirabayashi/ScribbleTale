@@ -144,12 +144,17 @@ export function buildConsistencyCheckPrompt(params: {
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
   modifiedText: string
+  childUtterance?: string
 }): string {
-  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText } = params
+  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
     .join('\n')
+
+  const utteranceNote = childUtterance
+    ? `\n\n## 子どもの発言（この意図は必ず尊重すること）\n「${childUtterance}」`
+    : ''
 
   return `あなたは子供向け絵本「${bookTitle}」の物語の整合性を確認する編集者です。
 
@@ -161,6 +166,7 @@ ${pageRole}
 
 ## これまでの物語
 ${prevContext || 'なし（最初のページ）'}
+${utteranceNote}
 
 ## 改変後テキスト
 ${modifiedText}
@@ -169,9 +175,11 @@ ${modifiedText}
 1. 固定要素が守られているか
 2. これまでの物語と矛盾していないか
 3. キャラクターの行動に整合性があるか
+4. 子どもの発言の意図が反映されているか
 
+重要: 子どもの発言の意図（例: 登場人物の変更など）は最優先で尊重してください。
 整合性に問題がない場合: 「OK」のみ出力
-問題がある場合: 修正版テキストのみ出力（説明不要）`
+問題がある場合: 子どもの意図を保ったまま修正版テキストのみ出力（説明不要）`
 }
 
 /** 表紙画像生成プロンプト */

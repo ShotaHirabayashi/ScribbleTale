@@ -17,11 +17,12 @@ import type { Story } from '@/lib/types'
 interface StoryBookViewerProps {
   story: Story
   bookId?: string
+  sessionId?: string
   readOnly?: boolean
   authorName?: string
 }
 
-export function StoryBookViewer({ story, bookId, readOnly = false, authorName }: StoryBookViewerProps) {
+export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, authorName }: StoryBookViewerProps) {
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(0)
   const [isFlipping, setIsFlipping] = useState(false)
@@ -45,7 +46,7 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
     handleSkipCommentTime,
     handleConfirmModification,
     handleCancelConfirmation,
-  } = useStory(bookId || story.id, story.pages)
+  } = useStory(bookId || story.id, story.pages, sessionId)
 
   const syncPageIndex = useStoryStore((s) => s.syncPageIndex)
 

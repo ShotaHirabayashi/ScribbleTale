@@ -28,6 +28,7 @@ export function useVoiceInput({
 }: UseVoiceInputOptions) {
   const addPendingKeyword = useStoryStore((s) => s.addPendingKeyword)
   const setChildUtterance = useStoryStore((s) => s.setChildUtterance)
+  const setIsExtractingKeyword = useStoryStore((s) => s.setIsExtractingKeyword)
 
   const recognitionRef = useRef<SpeechRecognitionManager | null>(null)
   const prevPhaseRef = useRef(false)
@@ -47,6 +48,7 @@ export function useVoiceInput({
     async (utterance: string) => {
       if (extractingRef.current || !utterance.trim()) return
       extractingRef.current = true
+      setIsExtractingKeyword(true)
 
       try {
         console.log('[useVoiceInput] Extracting keyword from:', utterance)
@@ -62,6 +64,7 @@ export function useVoiceInput({
 
         if (!res.ok) {
           console.warn('[useVoiceInput] Keyword extraction failed:', res.status)
+          setIsExtractingKeyword(false)
           return
         }
 
@@ -76,14 +79,18 @@ export function useVoiceInput({
           }
           addPendingKeyword(extraction)
           setChildUtterance(utterance)
+        } else {
+          // キーワードなし → フラグ解除（readingCompleteへフォールバック）
+          setIsExtractingKeyword(false)
         }
       } catch (err) {
         console.error('[useVoiceInput] Extraction error:', err)
+        setIsExtractingKeyword(false)
       } finally {
         extractingRef.current = false
       }
     },
-    [bookTitle, currentPageText, addPendingKeyword, setChildUtterance]
+    [bookTitle, currentPageText, addPendingKeyword, setChildUtterance, setIsExtractingKeyword]
   )
 
   // コメントタイムフェーズ開始/終了で音声認識を制御
