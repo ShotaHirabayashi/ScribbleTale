@@ -3,11 +3,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookPage } from './BookPage'
-import { ChevronLeft, ChevronRight, Home, Sparkles, Share2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Home, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useStory } from '@/hooks/useStory'
 import { usePagePreloader } from '@/hooks/usePagePreloader'
-import { ShareModal } from '@/components/share/ShareModal'
 import { useStoryStore } from '@/stores/story-store'
 import { useMusicSession } from '@/hooks/useMusicSession'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
@@ -28,7 +27,6 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
   const [isFlipping, setIsFlipping] = useState(false)
   const [flipDirection, setFlipDirection] = useState<'forward' | 'backward' | null>(null)
   const [flippedPages, setFlippedPages] = useState<Set<number>>(new Set())
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const bookRef = useRef<HTMLDivElement>(null)
@@ -46,9 +44,6 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
     handleSkipCommentTime,
   } = useStory(bookId || story.id, story.pages)
 
-  // 共有state
-  const shareToken = useStoryStore((s) => s.shareToken)
-  const shareStory = useStoryStore((s) => s.shareStory)
   const syncPageIndex = useStoryStore((s) => s.syncPageIndex)
 
   // storeのページデータがあればそちらを使用（改変反映）
@@ -355,22 +350,13 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
               じぶんも えほんを つくる
             </Link>
           ) : (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <Link
-                href={`/book/${story.id}/cover`}
-                className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-serif text-xs font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 sm:gap-2 sm:px-6 sm:py-2.5 sm:text-sm"
-              >
-                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                ひょうしを つくる
-              </Link>
-              <button
-                onClick={() => setIsShareModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-secondary px-4 py-2 font-serif text-xs font-bold text-secondary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 sm:gap-2 sm:px-6 sm:py-2.5 sm:text-sm"
-              >
-                <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                シェアする
-              </button>
-            </div>
+            <Link
+              href={`/book/${story.id}/cover`}
+              className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-serif text-xs font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-700 sm:gap-2 sm:px-6 sm:py-2.5 sm:text-sm"
+            >
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              ひょうしを つくる
+            </Link>
           )
         ) : readOnly && authorName ? (
           <p className="font-serif text-[10px] text-background/60 sm:text-xs">
@@ -383,20 +369,6 @@ export function StoryBookViewer({ story, bookId, readOnly = false, authorName }:
         )}
       </div>
 
-      {/* Share Modal */}
-      {!readOnly && (
-        <ShareModal
-          isOpen={isShareModalOpen}
-          onClose={() => setIsShareModalOpen(false)}
-          bookTitle={story.title}
-          shareUrl={shareToken ? `/story/${shareToken}` : null}
-          onGenerateShareUrl={async () => {
-            const url = await shareStory()
-            if (!url) throw new Error('Share URL generation failed')
-            return url
-          }}
-        />
-      )}
     </div>
   )
 }

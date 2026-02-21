@@ -1,22 +1,44 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSavedBooks } from "@/lib/data/saved-books"
 import { SvgFilters } from "@/components/effects/SvgFilters"
 import { PaperTexture } from "@/components/effects/PaperTexture"
 import { LibraryHeader } from "@/components/library/LibraryHeader"
-import { SavedBookCard } from "@/components/library/SavedBookCard"
-import { BookOpen } from "lucide-react"
+import { SharedBookCard } from "@/components/library/SharedBookCard"
+import { BookOpen, Loader2 } from "lucide-react"
 import Link from "next/link"
-import type { SavedBook } from "@/lib/types"
+import type { StoryPage, Modification } from "@/lib/types"
+
+interface SharedStoryItem {
+  id: string
+  bookId: string
+  shareToken: string
+  pages: StoryPage[]
+  modifications: Modification[]
+  updatedAt: unknown
+}
 
 export default function LibraryPage() {
-  const [books, setBooks] = useState<SavedBook[]>([])
-  const [loaded, setLoaded] = useState(false)
+  const [stories, setStories] = useState<SharedStoryItem[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setBooks(getSavedBooks())
-    setLoaded(true)
+    let cancelled = false
+
+    async function load() {
+      try {
+        const { getSharedStories } = await import("@/lib/firebase/firestore")
+        const data = await getSharedStories(50)
+        if (!cancelled) setStories(data as SharedStoryItem[])
+      } catch (err) {
+        console.warn("[library] Failed to load stories:", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
   }, [])
 
   return (
@@ -26,8 +48,14 @@ export default function LibraryPage() {
       <LibraryHeader />
 
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-4 md:px-8">
-        {loaded && books.length === 0 ? (
-          /* Empty state */
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-24">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="font-serif text-sm text-muted-foreground">
+              よみこみちゅう...
+            </p>
+          </div>
+        ) : stories.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-6 py-24">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
               <BookOpen className="h-10 w-10 text-muted-foreground" />
@@ -37,7 +65,7 @@ export default function LibraryPage() {
                 まだ えほんが ないよ
               </p>
               <p className="mt-2 font-serif text-sm text-muted-foreground">
-                えほんを よんで、じぶんだけの ひょうしを つくってみよう
+                えほんを よんで、シェアすると ここに ならぶよ
               </p>
             </div>
             <Link
@@ -48,10 +76,9 @@ export default function LibraryPage() {
             </Link>
           </div>
         ) : (
-          /* Book grid */
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-            {books.map((book, index) => (
-              <SavedBookCard key={book.id} book={book} index={index} />
+            {stories.map((story, index) => (
+              <SharedBookCard key={story.id} story={story} index={index} />
             ))}
           </div>
         )}

@@ -58,9 +58,6 @@ export function SharePreviewCard({ book }: SharePreviewCardProps) {
           <p className="font-serif text-xs font-bold text-primary">ScribbleTale</p>
         </div>
       </div>
-
-      {/* Tape decoration */}
-      <div className="mx-auto -mt-1 h-6 w-16 rounded-sm bg-amber-100/60 shadow-sm" aria-hidden="true" />
     </div>
   )
 }

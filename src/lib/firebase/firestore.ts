@@ -2,8 +2,13 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
+  query,
+  where,
+  orderBy,
+  limit as firestoreLimit,
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from './config'
@@ -88,6 +93,23 @@ export async function getStoryByShareToken(
     id: storySnap.id,
     ...(storySnap.data() as FirestoreStoryData),
   }
+}
+
+/** 共有済みストーリーを全件取得（本棚用） */
+export async function getSharedStories(
+  max: number = 50
+): Promise<(FirestoreStoryData & { id: string })[]> {
+  const q = query(
+    collection(db, STORIES_COLLECTION),
+    where('isShared', '==', true),
+    orderBy('updatedAt', 'desc'),
+    firestoreLimit(max),
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as FirestoreStoryData),
+  }))
 }
 
 /** ストーリーIDで直接取得 */
