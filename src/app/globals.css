@@ -152,6 +152,19 @@
   animation: image-reveal 1.2s ease-out;
 }
 
+/* iOS Safari 描画モード中の長押しコピー防止 */
+.drawing-overlay-active,
+.drawing-overlay-active * {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+.drawing-overlay-active img {
+  pointer-events: none !important;
+  -webkit-touch-callout: none !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -187,10 +187,15 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
         <canvas
           ref={canvasRef}
           className="absolute inset-0 cursor-crosshair touch-none"
+          style={{
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onContextMenu={(e) => e.preventDefault()}
         />
       </div>
 

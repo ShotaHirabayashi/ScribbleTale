@@ -128,7 +128,7 @@ export function BookPage({
   }
 
   return (
-    <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
+    <div className={`relative flex h-full w-full flex-col bg-[var(--storybook-cream)] ${pagePhase === 'drawing' ? 'drawing-overlay-active' : ''}`}>
       <div
         className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]"
         style={pagePhase === 'drawing' ? {
@@ -137,6 +137,7 @@ export function BookPage({
           userSelect: 'none',
           pointerEvents: 'none',
         } : undefined}
+        onContextMenu={pagePhase === 'drawing' ? (e) => e.preventDefault() : undefined}
       >
         <Image
           src={page.illustration}
@@ -223,7 +224,10 @@ export function BookPage({
             />
           )}
 
-          {pagePhase === 'modifying' && modificationPhase === 'orchestrating' && (
+          {(
+            (pagePhase === 'modifying' && (modificationPhase === 'orchestrating' || modificationPhase === 'generating_image')) ||
+            (pagePhase === 'modified' && modificationPhase === 'generating_image')
+          ) && (
             <ModificationLoading phase={modificationPhase} keyword={selectedKeyword ?? undefined} />
           )}
         </>
