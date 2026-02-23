@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { Eraser, Trash2 } from 'lucide-react'
+import { Check, Eraser, Trash2 } from 'lucide-react'
 
 interface DrawingCanvasProps {
   onComplete: (imageBase64: string) => void
@@ -210,18 +210,22 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
             <button
               key={color.value}
               onClick={() => selectColor(color.value)}
-              className={`h-7 w-7 rounded-full border-2 transition-transform sm:h-8 sm:w-8 ${
+              className={`relative h-10 w-10 rounded-full border-2 transition-transform sm:h-11 sm:w-11 ${
                 selectedColor === color.value && !isEraser
                   ? 'scale-110 border-white'
                   : 'border-transparent hover:scale-105'
               }`}
               style={{ backgroundColor: color.value }}
               aria-label={color.name}
-            />
+            >
+              {selectedColor === color.value && !isEraser && (
+                <Check className="absolute inset-0 m-auto h-5 w-5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
+              )}
+            </button>
           ))}
           <button
             onClick={() => setIsEraser(true)}
-            className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-transform sm:h-8 sm:w-8 ${
+            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-transform sm:h-11 sm:w-11 ${
               isEraser
                 ? 'scale-110 border-white bg-white/30'
                 : 'border-transparent bg-white/20 hover:scale-105'
@@ -232,7 +236,7 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
           </button>
           <button
             onClick={handleClear}
-            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-transparent bg-white/20 transition-transform hover:scale-105 sm:h-8 sm:w-8"
+            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-transparent bg-white/20 transition-transform hover:scale-105 sm:h-11 sm:w-11"
             aria-label="ぜんぶけす"
           >
             <Trash2 className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
@@ -243,13 +247,13 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={onCancel}
-            className="rounded-full bg-white/20 px-3 py-1.5 font-serif text-xs font-bold text-white transition-all hover:bg-white/30 active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
+            className="rounded-full bg-white/20 px-4 py-2 font-serif text-sm font-bold text-white transition-all hover:bg-white/30 active:scale-95 sm:px-5 sm:py-2.5 sm:text-base"
           >
             やめる
           </button>
           <button
             onClick={handleComplete}
-            className="rounded-full bg-primary px-3 py-1.5 font-serif text-xs font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
+            className="rounded-full bg-primary px-4 py-2 font-serif text-sm font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 sm:px-5 sm:py-2.5 sm:text-base"
           >
             できた！
           </button>

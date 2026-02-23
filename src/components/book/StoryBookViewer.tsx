@@ -82,6 +82,9 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const recognizedKeyword = useStoryStore((s) => s.recognizedKeyword)
   const drawingImageBase64 = useStoryStore((s) => s.drawingImageBase64)
   const isRecognizingDrawing = useStoryStore((s) => s.isRecognizingDrawing)
+  const drawingError = useStoryStore((s) => s.drawingError)
+  const voiceError = useStoryStore((s) => s.voiceError)
+  const setDrawingError = useStoryStore((s) => s.setDrawingError)
   const handleStartDrawing = useCallback(() => {
     startDrawing()
   }, [startDrawing])
@@ -91,6 +94,13 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const handleDrawingReject = useCallback(() => {
     rejectDrawing()
   }, [rejectDrawing])
+  const handleDrawingRetry = useCallback(() => {
+    setDrawingError(null)
+    startDrawing()
+  }, [setDrawingError, startDrawing])
+  const handleDrawingErrorClose = useCallback(() => {
+    setDrawingError(null)
+  }, [setDrawingError])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
@@ -286,6 +296,10 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
                     recognizedKeyword={isPageActive && !readOnly ? recognizedKeyword : undefined}
                     drawingImageBase64={isPageActive && !readOnly ? drawingImageBase64 : undefined}
                     isRecognizingDrawing={isPageActive && !readOnly ? isRecognizingDrawing : undefined}
+                    drawingError={isPageActive && !readOnly ? drawingError : undefined}
+                    voiceError={isPageActive && !readOnly ? voiceError : undefined}
+                    onDrawingRetry={isPageActive && !readOnly ? handleDrawingRetry : undefined}
+                    onDrawingErrorClose={isPageActive && !readOnly ? handleDrawingErrorClose : undefined}
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/5 to-transparent" />
@@ -339,17 +353,17 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
           </button>
 
           {/* Page dots */}
-          <div className="flex items-center gap-1" role="tablist" aria-label="ページ">
+          <div className="flex items-center gap-1.5" role="tablist" aria-label="ページ">
             {displayPages.map((_, index) => (
               <div
                 key={index}
                 role="tab"
                 aria-selected={currentPage === index}
                 aria-label={`ページ ${index + 1}`}
-                className={`h-1.5 rounded-full transition-all duration-300 sm:h-2 ${
+                className={`h-2.5 rounded-full transition-all duration-300 sm:h-3.5 ${
                   currentPage === index
-                    ? 'w-4 bg-[var(--storybook-peach)] sm:w-6'
-                    : 'w-1.5 bg-background/50 sm:w-2'
+                    ? 'w-6 bg-[var(--storybook-peach)] sm:w-8'
+                    : 'w-2.5 bg-background/50 sm:w-3'
                 }`}
               />
             ))}

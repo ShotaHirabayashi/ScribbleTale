@@ -30,6 +30,7 @@ export function useVoiceInput({
 }: UseVoiceInputOptions) {
   const addPendingKeyword = useStoryStore((s) => s.addPendingKeyword)
   const setChildUtterance = useStoryStore((s) => s.setChildUtterance)
+  const setVoiceError = useStoryStore((s) => s.setVoiceError)
 
   const prevPhaseRef = useRef(false)
   const finalTranscriptRef = useRef('')
@@ -132,6 +133,8 @@ export function useVoiceInput({
         onError: (err) => {
           console.error('[useVoiceInput/Live] Error:', err)
           setLiveError(err.message)
+          setVoiceError('こえが きこえなかったよ')
+          setTimeout(() => setVoiceError(null), 3000)
         },
       })
       liveManagerRef.current = manager
@@ -229,6 +232,8 @@ export function useVoiceInput({
           },
           onError: (error) => {
             console.warn('[useVoiceInput] Speech recognition error:', error)
+            setVoiceError('こえが きこえなかったよ')
+            setTimeout(() => setVoiceError(null), 3000)
           },
           onEnd: () => {
             if (prevPhaseRef.current && recognitionRef.current) {

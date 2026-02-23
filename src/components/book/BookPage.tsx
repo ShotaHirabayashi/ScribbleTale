@@ -11,6 +11,7 @@ import { WaitingExperience } from './WaitingExperience'
 import { DrawingOverlay } from './DrawingOverlay'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
 import { DrawingRecognizingModal } from './DrawingRecognizingModal'
+import { DrawingErrorModal } from './DrawingErrorModal'
 import { ConfirmationOverlay } from './ConfirmationOverlay'
 import { soundManager } from '@/lib/audio/sound-manager'
 import type { StoryPage } from '@/lib/types'
@@ -42,6 +43,10 @@ interface BookPageProps {
   recognizedKeyword?: string | null
   drawingImageBase64?: string | null
   isRecognizingDrawing?: boolean
+  drawingError?: string | null
+  voiceError?: string | null
+  onDrawingRetry?: () => void
+  onDrawingErrorClose?: () => void
 }
 
 export function BookPage({
@@ -70,6 +75,10 @@ export function BookPage({
   recognizedKeyword,
   drawingImageBase64,
   isRecognizingDrawing,
+  drawingError,
+  voiceError,
+  onDrawingRetry,
+  onDrawingErrorClose,
 }: BookPageProps) {
   // 表示するテキスト（改変済みの場合はcurrentTextを使用）
   const displayText = page.currentText || page.text
@@ -179,10 +188,18 @@ export function BookPage({
         <>
           <div className="shrink-0 h-[3.5rem] px-4 sm:px-6 md:px-10">
             {pagePhase === 'readingComplete' && canShowCommentTimeButton && (
-              <CommentTimeButton
-                onStart={onStartCommentTime!}
-                onStartDrawing={onStartDrawing!}
-              />
+              (page.modificationCount ?? 0) >= 2 ? (
+                <div className="flex justify-center pt-2 pb-1 animate-in fade-in duration-500">
+                  <p className="font-serif text-sm text-muted-foreground">
+                    もう たくさん かえたね！つぎに すすもう
+                  </p>
+                </div>
+              ) : (
+                <CommentTimeButton
+                  onStart={onStartCommentTime!}
+                  onStartDrawing={onStartDrawing!}
+                />
+              )
             )}
           </div>
 
@@ -195,6 +212,14 @@ export function BookPage({
 
           {isRecognizingDrawing && (
             <DrawingRecognizingModal />
+          )}
+
+          {drawingError && onDrawingRetry && onDrawingErrorClose && (
+            <DrawingErrorModal
+              message={drawingError}
+              onRetry={onDrawingRetry}
+              onClose={onDrawingErrorClose}
+            />
           )}
 
           {pagePhase === 'drawingConfirm' && onDrawingConfirm && onDrawingReject && recognizedKeyword && drawingImageBase64 && (
@@ -219,6 +244,7 @@ export function BookPage({
             <CommentTimeOverlay
               remainingMs={commentTimeRemainingMs}
               childUtterance={childUtterance ?? null}
+              voiceError={voiceError}
               onSkip={onSkipCommentTime}
               onEnd={onEndCommentTime}
             />

@@ -36,6 +36,10 @@ interface StoryState {
   recognizedKeyword: string | null
   isRecognizingDrawing: boolean
 
+  // ── エラー ──
+  drawingError: string | null
+  voiceError: string | null
+
   // ── 共有 ──
   shareToken: string | null
   isShared: boolean
@@ -93,6 +97,8 @@ interface StoryState {
   clearContextRegenerationFlag: (pageIndex: number) => void
   resetSession: () => void
   setBgmOverride: (override: MusicPromptConfig | null) => void
+  setDrawingError: (error: string | null) => void
+  setVoiceError: (error: string | null) => void
   shareStory: () => Promise<string | null>
 }
 
@@ -112,6 +118,8 @@ const initialState = {
   drawingImageBase64: null as string | null,
   recognizedKeyword: null as string | null,
   isRecognizingDrawing: false,
+  drawingError: null as string | null,
+  voiceError: null as string | null,
   bgmOverride: null as MusicPromptConfig | null,
   characterStates: [] as CharacterState[],
   shareToken: null as string | null,
@@ -179,8 +187,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   endCommentTime: (reason) => {
-    const { pendingKeywords } = get()
+    const { pendingKeywords, currentPageIndex, pages } = get()
     const keyword = pendingKeywords.length > 0 ? pendingKeywords[pendingKeywords.length - 1] : null
+    const currentPage = pages[currentPageIndex]
+    const modCount = currentPage?.modificationCount ?? 0
 
     set({
       isCommentTimeActive: false,
@@ -188,14 +198,14 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: keyword,
     })
 
-    if (keyword) {
-      // キーワード（発話テキスト）があれば即座に改変開始
+    if (keyword && modCount < 2) {
+      // キーワード（発話テキスト）があり、改変回数制限内なら改変開始
       set({ pagePhase: 'modifying' })
     } else if (reason === 'manual_skip') {
       // 明示的スキップ → 次ページへ
       set({ pagePhase: 'transitioning' })
     } else {
-      // キーワードなし → ボタンに戻す（再挑戦可能）
+      // キーワードなし or 改変回数制限超過 → ボタンに戻す（再挑戦可能）
       set({ pagePhase: 'readingComplete' })
     }
   },
@@ -412,9 +422,24 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ isRecognizingDrawing: flag })
   },
 
+  setDrawingError: (error) => {
+    set({ drawingError: error })
+  },
+
+  setVoiceError: (error) => {
+    set({ voiceError: error })
+  },
+
   confirmDrawing: () => {
-    const { recognizedKeyword } = get()
+    const { recognizedKeyword, currentPageIndex, pages } = get()
     if (!recognizedKeyword) return
+
+    // 改変回数制限チェック
+    const currentPage = pages[currentPageIndex]
+    if ((currentPage?.modificationCount ?? 0) >= 2) {
+      set({ pagePhase: 'readingComplete' })
+      return
+    }
 
     const extractionResult = {
       keyword: recognizedKeyword,

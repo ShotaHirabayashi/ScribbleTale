@@ -12,12 +12,14 @@ export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputPar
   const handleDrawingComplete = useCallback(
     async (imageBase64: string) => {
       store.setIsRecognizingDrawing(true)
+      store.setDrawingError(null)
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
 
       try {
-        // 描画データを保存
         store.setDrawingImage(imageBase64)
 
-        // recognize-drawing API でキーワード抽出（完了後に modifying へ遷移）
         const response = await fetch('/api/recognize-drawing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -25,7 +27,10 @@ export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputPar
             imageBase64,
             mimeType: 'image/jpeg',
           }),
+          signal: controller.signal,
         })
+
+        clearTimeout(timeoutId)
 
         if (!response.ok) {
           const errBody = await response.json().catch(() => ({}))
@@ -36,15 +41,18 @@ export function useDrawingInput({ bookId, currentPageIndex }: UseDrawingInputPar
         const result = await response.json()
         const keyword = result.keyword || result.description || 'おえかき'
 
-        // 認識結果を保存して確認画面へ遷移（まだ改変は開始しない）
         store.setRecognizedKeyword(keyword)
         store.setPagePhase('drawingConfirm')
       } catch (error) {
         console.error('[useDrawingInput] Recognition failed:', error)
-        // 失敗時は readingComplete に戻す
+        const message = error instanceof DOMException && error.name === 'AbortError'
+          ? 'じかんが かかりすぎちゃったよ'
+          : 'おえかきが うまく よめなかったよ'
+        store.setDrawingError(message)
         store.setDrawingImage(null)
         store.setPagePhase('readingComplete')
       } finally {
+        clearTimeout(timeoutId)
         store.setIsRecognizingDrawing(false)
       }
     },
