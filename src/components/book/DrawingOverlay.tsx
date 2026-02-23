@@ -9,7 +9,14 @@ interface DrawingOverlayProps {
 
 export function DrawingOverlay({ onComplete, onCancel }: DrawingOverlayProps) {
   return (
-    <div className="absolute inset-0 z-20 bg-black/10">
+    <div
+      className="absolute inset-0 z-20 bg-black/10"
+      style={{
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+      }}
+    >
       <DrawingCanvas onComplete={onComplete} onCancel={onCancel} />
     </div>
   )

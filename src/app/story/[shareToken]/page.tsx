@@ -13,15 +13,19 @@ interface FirestoreValue {
   stringValue?: string
   booleanValue?: boolean
   integerValue?: string
+  doubleValue?: number
+  nullValue?: null
   arrayValue?: { values?: FirestoreValue[] }
   mapValue?: { fields?: Record<string, FirestoreValue> }
   timestampValue?: string
 }
 
 function parseFirestoreValue(val: FirestoreValue): unknown {
+  if ('nullValue' in val) return null
   if ('stringValue' in val) return val.stringValue
   if ('booleanValue' in val) return val.booleanValue
   if ('integerValue' in val) return Number(val.integerValue)
+  if ('doubleValue' in val) return val.doubleValue
   if ('timestampValue' in val) {
     const d = new Date(val.timestampValue!)
     return { seconds: Math.floor(d.getTime() / 1000), nanoseconds: 0 }
@@ -137,10 +141,18 @@ export default async function SharedStoryPage({ params }: { params: Params }) {
     notFound()
   }
 
-  // Firestoreに保存されたページデータで上書き
+  // Firestoreに保存されたデータでテンプレートを上書き
   const mergedStory = {
     ...baseStory,
-    pages: storyData.pages.length > 0 ? storyData.pages : baseStory.pages,
+    ...(storyData.title && { title: storyData.title }),
+    ...(storyData.coverImage && { coverImage: storyData.coverImage }),
+    pages: storyData.pages.length > 0
+      ? storyData.pages.map((page, index) => ({
+          ...page,
+          illustration: page.illustration || baseStory.pages[index]?.illustration || '',
+          text: page.text || page.currentText || baseStory.pages[index]?.text || '',
+        }))
+      : baseStory.pages,
   }
 
   return (

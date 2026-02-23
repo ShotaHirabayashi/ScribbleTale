@@ -159,15 +159,28 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
 
   // タッチスクロール防止
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
     e.stopPropagation()
   }, [])
 
   return (
     <div
       className="flex h-full w-full flex-col"
+      style={{
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        touchAction: 'none',
+      }}
       onTouchStart={handleTouchStart}
-      onTouchMove={(e) => e.stopPropagation()}
-      onTouchEnd={(e) => e.stopPropagation()}
+      onTouchMove={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+      }}
+      onTouchEnd={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+      }}
     >
       {/* Canvas area */}
       <div className="relative min-h-0 flex-1">
@@ -182,7 +195,10 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
       </div>
 
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center justify-between gap-2 bg-black/40 px-2 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2">
+      <div
+        className="flex shrink-0 items-center justify-between gap-2 bg-black/40 px-2 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2"
+        onTouchStart={(e) => e.stopPropagation()}
+      >
         {/* Colors */}
         <div className="flex items-center gap-1 sm:gap-1.5">
           {COLORS.map((color) => (

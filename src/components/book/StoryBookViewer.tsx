@@ -49,6 +49,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   } = useStory(bookId || story.id, story.pages, sessionId)
 
   const syncPageIndex = useStoryStore((s) => s.syncPageIndex)
+  const storySessionId = useStoryStore((s) => s.storySessionId)
 
   // storeのページデータがあればそちらを使用（改変反映）
   const displayPages = readOnly ? story.pages : (storePages.length > 0 ? storePages : story.pages)
@@ -96,6 +97,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
     currentPageIndex: currentPage,
     pages: displayPages,
     isCommentTimePhase: !readOnly && pagePhase === 'commentTime',
+    bookTitle: story.title,
   })
 
   const goToNextPage = useCallback(() => {
@@ -375,7 +377,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
             </Link>
           ) : (
             <Link
-              href={`/book/${story.id}/cover`}
+              href={`/book/${story.id}/cover${storySessionId ? `?session=${storySessionId}` : ''}`}
               className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-serif text-xs font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-700 sm:gap-2 sm:px-6 sm:py-2.5 sm:text-sm"
             >
               <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { CoverPreview } from "./CoverPreview"
 import { useStoryStore } from "@/stores/story-store"
 import { BookOpen, Sparkles, Wand2 } from "lucide-react"
 import { buildCoverImagePrompt } from "@/lib/gemini/prompts"
-import type { Story, FrameStyle } from "@/lib/types"
+import type { Story, StoryPage, Modification, FrameStyle } from "@/lib/types"
 
 interface CoverCreatorProps {
   story: Story
+  sessionId?: string
 }
 
 const BG_COLORS = [
@@ -26,9 +27,11 @@ const FRAME_STYLES: { value: FrameStyle; label: string }[] = [
   { value: "simple", label: "シンプル" },
 ]
 
-export function CoverCreator({ story }: CoverCreatorProps) {
+export function CoverCreator({ story, sessionId }: CoverCreatorProps) {
   const router = useRouter()
   const { storySessionId, pages, modifications } = useStoryStore()
+  const [restoredPages, setRestoredPages] = useState<StoryPage[]>([])
+  const [restoredModifications, setRestoredModifications] = useState<Modification[]>([])
   const [title, setTitle] = useState(story.title)
   const [authorName, setAuthorName] = useState("")
   const [bgColor, setBgColor] = useState(BG_COLORS[0].value)
@@ -38,16 +41,39 @@ export function CoverCreator({ story }: CoverCreatorProps) {
   const [generatedCoverImage, setGeneratedCoverImage] = useState<string | null>(null)
   const [isGeneratingCover, setIsGeneratingCover] = useState(false)
 
+  // Firestoreからデータ復元（Zustand storeが空でsessionIdがある場合）
+  const effectiveSessionId = storySessionId || sessionId
+  useEffect(() => {
+    if (pages.length > 0 || !effectiveSessionId) return
+    let cancelled = false
+    import("@/lib/firebase/firestore").then(({ getStoryById }) => {
+      getStoryById(effectiveSessionId).then((data) => {
+        if (cancelled || !data || data.pages.length === 0) return
+        console.log("[CoverCreator] Restored data from Firestore, pages:", data.pages.length)
+        setRestoredPages(data.pages)
+        setRestoredModifications(data.modifications || [])
+        if (data.title) setTitle(data.title)
+      }).catch((err) => {
+        console.warn("[CoverCreator] Failed to restore from Firestore:", err)
+      })
+    })
+    return () => { cancelled = true }
+  }, [pages.length, effectiveSessionId])
+
   // Fade in on mount
   useState(() => {
     const timer = setTimeout(() => setIsVisible(true), 100)
     return () => clearTimeout(timer)
   })
 
+  // 有効なページデータ: store > Firestore復元 > テンプレート の優先順
+  const effectivePages = pages.length > 0 ? pages : restoredPages.length > 0 ? restoredPages : story.pages
+  const effectiveModifications = pages.length > 0 ? modifications : restoredModifications.length > 0 ? restoredModifications : []
+
   const handleGenerateCover = useCallback(async () => {
     setIsGeneratingCover(true)
     try {
-      const storyPages = pages.length > 0 ? pages : story.pages
+      const storyPages = effectivePages
       const storySummary = storyPages
         .filter((p) => (p.pageNumber ?? 0) > 0)
         .map((p) => p.currentText || p.text)
@@ -77,7 +103,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     } finally {
       setIsGeneratingCover(false)
     }
-  }, [pages, story, title])
+  }, [effectivePages, story, title])
 
   const handleSave = useCallback(async () => {
     if (!authorName.trim()) return
@@ -85,13 +111,13 @@ export function CoverCreator({ story }: CoverCreatorProps) {
 
     const finalTitle = title.trim() || story.title
     const finalAuthor = authorName.trim()
-    const storyId = storySessionId || `story-${Date.now()}`
+    const storyId = storySessionId || sessionId || `story-${Date.now()}`
 
     // Base64画像を Firebase Storage にアップロードして URL に差し替え
     const { uploadImage, getStoryImagePath } = await import("@/lib/firebase/storage")
 
     // ページ画像のアップロード
-    const storyPages = pages.length > 0 ? pages : story.pages
+    const storyPages = effectivePages
     const uploadedPages = await Promise.all(
       storyPages.map(async (page, index) => {
         if (page.illustration && page.illustration.startsWith("data:")) {
@@ -129,7 +155,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     }
 
     // Firestore に保存（/library ページ用）
-    const isExistingSession = !!storySessionId
+    const isExistingSession = !!(storySessionId || sessionId)
     let shareToken: string | undefined
     try {
       const shareBody: Record<string, unknown> = {
@@ -137,7 +163,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
         bookId: story.id,
         existingSession: isExistingSession,
         pages: uploadedPages,
-        modifications,
+        modifications: effectiveModifications,
         title: finalTitle,
         authorName: finalAuthor,
         coverImage: finalCoverImage,
@@ -169,7 +195,7 @@ export function CoverCreator({ story }: CoverCreatorProps) {
     } else {
       setIsSaving(false)
     }
-  }, [authorName, bgColor, frameStyle, router, story, title, storySessionId, pages, modifications, generatedCoverImage])
+  }, [authorName, bgColor, frameStyle, router, story, title, storySessionId, sessionId, effectivePages, effectiveModifications, generatedCoverImage])
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">

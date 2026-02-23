@@ -7,10 +7,12 @@ import { CommentTimeButton } from './CommentTimeButton'
 import { CommentTimeOverlay } from './CommentTimeOverlay'
 import { ModificationLoading } from './ModificationLoading'
 import { ImageShimmer } from './ImageShimmer'
+import { WaitingExperience } from './WaitingExperience'
 import { DrawingOverlay } from './DrawingOverlay'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
 import { DrawingRecognizingModal } from './DrawingRecognizingModal'
 import { ConfirmationOverlay } from './ConfirmationOverlay'
+import { soundManager } from '@/lib/audio/sound-manager'
 import type { StoryPage } from '@/lib/types'
 import type { PagePhase, ModificationPhase } from '@/lib/types'
 
@@ -77,14 +79,29 @@ export function BookPage({
 
   // シマー表示制御: illustrationLoading解除後に遅延で非表示
   const [showShimmer, setShowShimmer] = useState(false)
+  const [showCompletionEffect, setShowCompletionEffect] = useState(false)
+  const wasLoadingRef = useState(false)
   useEffect(() => {
     if (page.illustrationLoading) {
       setShowShimmer(true)
+      wasLoadingRef[1](true)
     } else if (showShimmer) {
+      // ローディング中だった → 完了エフェクトを表示 + SE再生
+      if (wasLoadingRef[0]) {
+        setShowCompletionEffect(true)
+        wasLoadingRef[1](false)
+        soundManager.play('modification-complete')
+        const effectTimer = setTimeout(() => setShowCompletionEffect(false), 1500)
+        const shimmerTimer = setTimeout(() => setShowShimmer(false), 1000)
+        return () => {
+          clearTimeout(effectTimer)
+          clearTimeout(shimmerTimer)
+        }
+      }
       const timer = setTimeout(() => setShowShimmer(false), 1000)
       return () => clearTimeout(timer)
     }
-  }, [page.illustrationLoading, showShimmer])
+  }, [page.illustrationLoading, showShimmer, wasLoadingRef])
 
   if (isCover) {
     return (
@@ -112,17 +129,29 @@ export function BookPage({
 
   return (
     <div className="relative flex h-full w-full flex-col bg-[var(--storybook-cream)]">
-      <div className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]">
+      <div
+        className="relative min-h-0 flex-[3] bg-[var(--storybook-cream)]"
+        style={pagePhase === 'drawing' ? {
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+          pointerEvents: 'none',
+        } : undefined}
+      >
         <Image
           src={page.illustration}
           alt={page.alt}
           fill
-          className={`object-contain transition-opacity duration-1000 ${
-            page.illustrationLoading ? 'opacity-0' : 'opacity-100'
-          }`}
+          className={`object-contain transition-all duration-1000 ${
+            page.illustrationLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+          } ${showCompletionEffect ? 'animate-image-reveal' : ''}`}
         />
         {showShimmer && (
-          <ImageShimmer previousIllustration={page.previousIllustration} />
+          page.illustrationLoading ? (
+            <WaitingExperience previousIllustration={page.previousIllustration} keyword={selectedKeyword ?? undefined} />
+          ) : (
+            <ImageShimmer previousIllustration={page.previousIllustration} />
+          )
         )}
         {isLastPage && (
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />

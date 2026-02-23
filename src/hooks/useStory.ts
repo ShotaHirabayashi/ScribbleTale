@@ -1,6 +1,42 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useStoryStore } from '@/stores/story-store'
+import { usePrefetchRegeneration } from './usePrefetchRegeneration'
 import type { StoryPage } from '@/lib/types'
+
+/** ストリームのNDJSONチャンクを読み取るユーティリティ */
+async function* readNDJSON(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (trimmed) {
+        try {
+          yield JSON.parse(trimmed)
+        } catch {
+          console.warn('[useStory] Failed to parse NDJSON line:', trimmed)
+        }
+      }
+    }
+  }
+
+  // 残りのバッファを処理
+  if (buffer.trim()) {
+    try {
+      yield JSON.parse(buffer.trim())
+    } catch {
+      console.warn('[useStory] Failed to parse remaining buffer:', buffer)
+    }
+  }
+}
 
 /** Zustand storeのヘルパーフック */
 export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?: string) {
@@ -74,7 +110,17 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
     store.cancelConfirmation()
   }, [store])
 
-  // コメントタイム終了 → 改変フロー起動
+  // 波及再生成の先読み
+  const { consumeCache: consumePrefetchCache } = usePrefetchRegeneration({
+    pages: store.pages,
+    currentPageIndex: store.currentPageIndex,
+    pagePhase: store.pagePhase,
+    modificationPhase: store.modificationPhase,
+    bookId: store.bookId,
+    characterStates: store.characterStates,
+  })
+
+  // コメントタイム終了 → ストリーミング改変フロー起動
   useEffect(() => {
     if (
       store.pagePhase === 'modifying' &&
@@ -89,12 +135,15 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
 
           const bookTitle = store.bookId === 'momotaro' ? 'ももたろう' : 'あかずきん'
 
-          // サーバーサイドAPIルート経由で改変 + オーケストレーション
           // illustration (base64 data URI) を除外してペイロードを軽量化
           const lightPages = store.pages.map(({ illustration, ...rest }) => rest)
-          const modifyController = new AbortController()
-          const modifyTimer = setTimeout(() => modifyController.abort(), 60000)
-          const response = await fetch('/api/modify', {
+
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 90000) // ストリーム全体のタイムアウト
+
+          const targetPage = store.pages[store.currentPageIndex]
+
+          const response = await fetch('/api/modify-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -106,93 +155,79 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               pages: lightPages,
               trigger: store.selectedKeyword!.trigger,
               characterStates: store.characterStates,
+              // drawing トリガー用の追加パラメータ
+              ...(store.selectedKeyword!.trigger === 'drawing' && store.drawingImageBase64
+                ? {
+                    referenceImageBase64: store.drawingImageBase64,
+                    originalDescription: targetPage?.alt || '',
+                  }
+                : {}),
             }),
-            signal: modifyController.signal,
+            signal: controller.signal,
           })
-          clearTimeout(modifyTimer)
+          clearTimeout(timer)
 
-          if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}))
-            throw new Error(`Modify API failed: ${response.status} - ${errBody.error || 'unknown'}`)
+          if (!response.ok || !response.body) {
+            throw new Error(`Modify stream failed: ${response.status}`)
           }
 
-          const result = await response.json()
+          const reader = response.body.getReader()
+          let targetPageIndex = store.currentPageIndex
+          let textApplied = false
 
-          // キャラクター状態更新を反映
-          if (result.characterStateUpdates && result.characterStateUpdates.length > 0) {
-            store.updateCharacterStates(result.characterStateUpdates)
-          }
-
-          // テキスト先行表示: 即座にテキストを反映し、画像はシマー表示
-          store.applyTextFirst(
-            result.targetPageIndex,
-            result.modifiedText,
-            result.modification
-          )
-
-          // 挿絵を改変テキストに合わせて非同期で再生成
-          const targetPage = store.pages[result.targetPageIndex]
-
-          if (
-            store.selectedKeyword?.trigger === 'drawing' &&
-            store.drawingImageBase64
-          ) {
-            // drawing トリガー: 描画を参照して画像編集
-            try {
-              const editController = new AbortController()
-              const editTimer = setTimeout(() => editController.abort(), 60000)
-              const editResponse = await fetch('/api/edit-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  originalDescription: targetPage?.alt || '',
-                  keyword: store.selectedKeyword.keyword,
-                  modifiedText: result.modifiedText,
-                  referenceImageBase64: store.drawingImageBase64,
-                }),
-                signal: editController.signal,
-              })
-              clearTimeout(editTimer)
-              if (editResponse.ok) {
-                const editResult = await editResponse.json()
-                store.applyImageUpdate(
-                  result.targetPageIndex,
-                  `data:${editResult.mimeType};base64,${editResult.imageBase64}`
+          for await (const chunk of readNDJSON(reader)) {
+            switch (chunk.type) {
+              case 'text':
+                // テキスト改変結果を即座に表示
+                targetPageIndex = chunk.targetPageIndex
+                store.applyTextFirst(
+                  chunk.targetPageIndex,
+                  chunk.modifiedText,
+                  chunk.modification
                 )
-              } else {
-                store.handleImageFailure(result.targetPageIndex)
-              }
-            } catch (imgError) {
-              console.warn('[useStory] Image edit failed, continuing without:', imgError)
-              store.handleImageFailure(result.targetPageIndex)
-            }
-          } else {
-            // voice トリガー: 改変テキストに合わせて画像を新規生成
-            try {
-              const imgController = new AbortController()
-              const imgTimer = setTimeout(() => imgController.abort(), 60000)
-              const imgResponse = await fetch('/api/generate-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  sceneDescription: result.modifiedText,
-                  keyword: store.selectedKeyword?.keyword,
-                }),
-                signal: imgController.signal,
-              })
-              clearTimeout(imgTimer)
-              if (imgResponse.ok) {
-                const imgResult = await imgResponse.json()
-                store.applyImageUpdate(
-                  result.targetPageIndex,
-                  `data:${imgResult.mimeType};base64,${imgResult.imageBase64}`
-                )
-              } else {
-                store.handleImageFailure(result.targetPageIndex)
-              }
-            } catch (imgError) {
-              console.warn('[useStory] Image generation failed, continuing without:', imgError)
-              store.handleImageFailure(result.targetPageIndex)
+                textApplied = true
+                break
+
+              case 'orchestration':
+                // キャラクター状態更新を反映
+                if (chunk.characterStateUpdates && chunk.characterStateUpdates.length > 0) {
+                  store.updateCharacterStates(chunk.characterStateUpdates)
+                }
+                // 整合性チェックでテキストが修正された場合は差分を適用
+                if (chunk.textCorrected && chunk.modifiedText) {
+                  store.applyTextFirst(
+                    targetPageIndex,
+                    chunk.modifiedText,
+                    chunk.modification
+                  )
+                }
+                break
+
+              case 'image':
+                // 画像生成結果を反映
+                if (chunk.imageBase64 && chunk.mimeType) {
+                  store.applyImageUpdate(
+                    targetPageIndex,
+                    `data:${chunk.mimeType};base64,${chunk.imageBase64}`
+                  )
+                }
+                break
+
+              case 'image_failed':
+                // 画像生成失敗 → graceful degradation
+                console.warn('[useStory] Image generation failed via stream:', chunk.error)
+                store.handleImageFailure(targetPageIndex)
+                break
+
+              case 'error':
+                throw new Error(chunk.error || 'Stream error')
+
+              case 'done':
+                // 画像が来ていない場合（テキストのみ成功）も完了扱い
+                if (textApplied && store.modificationPhase === 'generating_image') {
+                  // 画像はまだ生成中 or 失敗済み → そのまま
+                }
+                break
             }
           }
         } catch (error) {
@@ -200,7 +235,6 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
           // エラー時は readingComplete に戻す
           store.setModificationPhase('idle')
           store.setPagePhase('readingComplete')
-          // ユーザー向けエラー表示（コンソールのみ）
           console.error('[useStory] keyword:', store.selectedKeyword?.keyword, 'utterance:', store.selectedKeyword?.childUtterance)
         } finally {
           modificationInProgressRef.current = false
@@ -223,6 +257,14 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
 
       const runRegeneration = async () => {
         try {
+          // 先読みキャッシュを確認
+          const cached = consumePrefetchCache(store.currentPageIndex)
+          if (cached) {
+            console.log('[useStory] Using prefetched regeneration for page', store.currentPageIndex)
+            store.completeRegeneration(cached.targetPageIndex, cached.modifiedText, cached.illustration)
+            return
+          }
+
           store.setPagePhase('modifying')
           store.setModificationPhase('orchestrating')
 

@@ -85,7 +85,7 @@ async function generateWithModel(
       safetySettings: CHILD_SAFE_SETTINGS,
       imageConfig: {
         aspectRatio: '3:4',
-        imageSize: '2K',
+        imageSize: '1K',
       },
     },
   })

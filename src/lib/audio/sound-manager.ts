@@ -1,6 +1,6 @@
 import { Howl } from 'howler'
 
-type SoundName = 'page-turn' | 'paper-rustle' | 'watercolor-drip' | 'magic-chime'
+type SoundName = 'page-turn' | 'paper-rustle' | 'watercolor-drip' | 'magic-chime' | 'modification-complete'
 
 interface SoundConfig {
   src: string
@@ -13,6 +13,7 @@ const SOUND_CONFIGS: Record<SoundName, SoundConfig> = {
   'paper-rustle': { src: '/sounds/paper-rustle.mp3', volume: 0.2 },
   'watercolor-drip': { src: '/sounds/watercolor-drip.mp3', volume: 0.4 },
   'magic-chime': { src: '/sounds/magic-chime.mp3', volume: 0.5 },
+  'modification-complete': { src: '/sounds/magic-chime.mp3', volume: 0.4 },
 }
 
 class SoundManager {

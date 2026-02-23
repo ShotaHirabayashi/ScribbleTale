@@ -169,8 +169,22 @@ export async function updateStoryPages(
 ): Promise<void> {
   const storyRef = doc(collection(db, STORIES_COLLECTION), storyId)
 
-  const updateData: Record<string, unknown> = {
-    pages,
+  // data: URIはFirestoreの1MBドキュメント制限を超えるため除外
+  // 画像はシェア時にFirebase Storageにアップロードされる
+  const sanitizedPages = pages.map((page) => {
+    const sanitized = { ...page }
+    if (sanitized.illustration && sanitized.illustration.startsWith('data:')) {
+      sanitized.illustration = ''
+    }
+    // 一時的なフィールドも除外
+    delete (sanitized as Record<string, unknown>).previousIllustration
+    delete (sanitized as Record<string, unknown>).illustrationLoading
+    return sanitized
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateData: Record<string, any> = {
+    pages: sanitizedPages,
     modifications,
     updatedAt: serverTimestamp(),
   }
