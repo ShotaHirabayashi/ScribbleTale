@@ -8,7 +8,6 @@ import { CommentTimeOverlay } from './CommentTimeOverlay'
 import { ModificationLoading } from './ModificationLoading'
 import { ImageShimmer } from './ImageShimmer'
 import { WaitingExperience } from './WaitingExperience'
-import { DrawingOverlay } from './DrawingOverlay'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
 import { DrawingRecognizingModal } from './DrawingRecognizingModal'
 import { DrawingErrorModal } from './DrawingErrorModal'
@@ -203,13 +202,7 @@ export function BookPage({
             )}
           </div>
 
-          {pagePhase === 'drawing' && onDrawingComplete && onDrawingCancel && (
-            <DrawingOverlay
-              illustration={page.illustration}
-              onComplete={onDrawingComplete}
-              onCancel={onDrawingCancel}
-            />
-          )}
+          {/* DrawingOverlay は transform 影響下で fixed が効かないため StoryBookViewer 側でレンダリング */}
 
           {isRecognizingDrawing && (
             <DrawingRecognizingModal />

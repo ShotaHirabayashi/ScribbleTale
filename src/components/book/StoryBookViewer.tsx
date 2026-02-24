@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookPage } from './BookPage'
+import { DrawingOverlay } from './DrawingOverlay'
 import { ChevronLeft, ChevronRight, Home, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useStory } from '@/hooks/useStory'
@@ -409,6 +410,14 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
         )}
       </div>
 
+      {/* DrawingOverlay: transform 影響外でレンダリングし fixed を正しく機能させる */}
+      {!readOnly && pagePhase === 'drawing' && (
+        <DrawingOverlay
+          illustration={displayPages[currentPage]?.illustration}
+          onComplete={handleDrawingComplete}
+          onCancel={handleDrawingCancel}
+        />
+      )}
     </div>
   )
 }

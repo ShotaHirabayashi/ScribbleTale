@@ -50,7 +50,12 @@ export function CoverCreator({ story, sessionId }: CoverCreatorProps) {
       getStoryById(effectiveSessionId).then((data) => {
         if (cancelled || !data || data.pages.length === 0) return
         console.log("[CoverCreator] Restored data from Firestore, pages:", data.pages.length)
-        setRestoredPages(data.pages)
+        // Firestoreではdata: URI画像が空文字に置換されるため、テンプレートから補完
+        const mergedPages = data.pages.map((page, index) => ({
+          ...page,
+          illustration: page.illustration || story.pages[index]?.illustration || "",
+        }))
+        setRestoredPages(mergedPages)
         setRestoredModifications(data.modifications || [])
         if (data.title) setTitle(data.title)
       }).catch((err) => {
@@ -117,7 +122,11 @@ export function CoverCreator({ story, sessionId }: CoverCreatorProps) {
     const { uploadImage, getStoryImagePath } = await import("@/lib/firebase/storage")
 
     // ページ画像のアップロード
-    const storyPages = effectivePages
+    // 空のillustrationはテンプレートから補完してから処理
+    const storyPages = effectivePages.map((page, index) => ({
+      ...page,
+      illustration: page.illustration || story.pages[index]?.illustration || "",
+    }))
     const uploadedPages = await Promise.all(
       storyPages.map(async (page, index) => {
         if (page.illustration && page.illustration.startsWith("data:")) {
@@ -248,7 +257,7 @@ export function CoverCreator({ story, sessionId }: CoverCreatorProps) {
           {/* Generate cover image button */}
           <button
             onClick={handleGenerateCover}
-            disabled={isGeneratingCover}
+            disabled={isGeneratingCover || isSaving}
             className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-3 font-serif text-sm text-primary transition-all hover:border-primary/60 hover:bg-primary/10 active:scale-[0.98] disabled:opacity-50"
           >
             {isGeneratingCover ? (
@@ -328,7 +337,7 @@ export function CoverCreator({ story, sessionId }: CoverCreatorProps) {
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!authorName.trim() || isSaving}
+            disabled={!authorName.trim() || isSaving || isGeneratingCover}
             className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-4 font-serif text-base font-bold text-primary-foreground shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
           >
             <BookOpen className="h-5 w-5" />
