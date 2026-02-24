@@ -147,13 +147,17 @@ export default async function SharedStoryPage({ params }: { params: Params }) {
     ...(storyData.title && { title: storyData.title }),
     ...(storyData.coverImage && { coverImage: storyData.coverImage }),
     pages: storyData.pages.length > 0
-      ? storyData.pages.map((page, index) => ({
-          ...page,
-          illustration: page.illustration || baseStory.pages[index]?.illustration || '',
-          // currentText（改変後テキスト）を優先、未設定なら text にフォールバック
-          currentText: page.currentText || page.text || baseStory.pages[index]?.text || '',
-          text: page.currentText || page.text || baseStory.pages[index]?.text || '',
-        }))
+      ? storyData.pages.map((page, index) => {
+          // カバーページ（index 0）: coverImage があればそちらを優先
+          const coverOverride = index === 0 && storyData.coverImage ? storyData.coverImage : null
+          return {
+            ...page,
+            illustration: coverOverride || page.illustration || baseStory.pages[index]?.illustration || '',
+            // currentText（改変後テキスト）を優先、未設定なら text にフォールバック
+            currentText: page.currentText || page.text || baseStory.pages[index]?.text || '',
+            text: page.currentText || page.text || baseStory.pages[index]?.text || '',
+          }
+        })
       : baseStory.pages,
   }
 

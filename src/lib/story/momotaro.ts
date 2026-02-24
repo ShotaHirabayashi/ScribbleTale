@@ -3,7 +3,7 @@ import { Story } from '@/lib/types'
 export const momotaroStory: Story = {
   id: 'momotaro',
   title: 'ももたろう',
-  coverImage: '/images/momotaro-cover.jpg',
+  coverImage: '/images/momotaro/page-01.jpg',
   pages: [
     {
       id: 1,

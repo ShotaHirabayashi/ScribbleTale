@@ -3,7 +3,7 @@ import { Story } from '@/lib/types'
 export const akazukinStory: Story = {
   id: 'akazukin',
   title: 'あかずきん',
-  coverImage: '/images/akazukin-cover.jpg',
+  coverImage: '/images/akazukin/page-01.jpg',
   pages: [
     {
       id: 1,
