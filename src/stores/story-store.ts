@@ -99,6 +99,9 @@ interface StoryState {
   setBgmOverride: (override: MusicPromptConfig | null) => void
   setDrawingError: (error: string | null) => void
   setVoiceError: (error: string | null) => void
+  startTextInput: () => void
+  submitTextKeyword: (keyword: string) => void
+  cancelTextInput: () => void
   shareStory: () => Promise<string | null>
 }
 
@@ -689,6 +692,41 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
   setBgmOverride: (override) => {
     set({ bgmOverride: override })
+  },
+
+  startTextInput: () => {
+    set({
+      pagePhase: 'textInput',
+      pendingKeywords: [],
+      selectedKeyword: null,
+      childUtterance: null,
+    })
+  },
+
+  submitTextKeyword: (keyword) => {
+    const { currentPageIndex, pages } = get()
+    const currentPage = pages[currentPageIndex]
+    if ((currentPage?.modificationCount ?? 0) >= 2) {
+      set({ pagePhase: 'readingComplete' })
+      return
+    }
+
+    const extractionResult: ExtractionResult = {
+      keyword,
+      childUtterance: `テキスト入力: ${keyword}`,
+      trigger: 'text',
+      timestamp: Date.now(),
+    }
+
+    set((state) => ({
+      pendingKeywords: [...state.pendingKeywords, extractionResult],
+      selectedKeyword: extractionResult,
+      pagePhase: 'modifying',
+    }))
+  },
+
+  cancelTextInput: () => {
+    set({ pagePhase: 'readingComplete' })
   },
 
   shareStory: async () => {

@@ -56,7 +56,7 @@ export interface SavedBook {
 // ── 新規型（Phase 0〜） ──
 
 /** ページのライフサイクルフェーズ */
-export type PagePhase = 'reading' | 'readingComplete' | 'commentTime' | 'drawing' | 'drawingConfirm' | 'confirming' | 'modifying' | 'modified' | 'transitioning'
+export type PagePhase = 'reading' | 'readingComplete' | 'commentTime' | 'drawing' | 'drawingConfirm' | 'confirming' | 'modifying' | 'modified' | 'transitioning' | 'textInput'
 
 /** 改変処理のフェーズ */
 export type ModificationPhase = 'idle' | 'orchestrating' | 'generating_image' | 'complete'
@@ -73,7 +73,7 @@ export type CommentTimeEndReason =
 export interface ExtractionResult {
   keyword: string
   childUtterance: string
-  trigger: 'voice' | 'drawing'
+  trigger: 'voice' | 'drawing' | 'text'
   timestamp: number
 }
 
@@ -136,7 +136,7 @@ export interface Modification {
   timestamp: number
   pageNumber: number
   targetPageNumber: number
-  trigger: 'voice' | 'drawing'
+  trigger: 'voice' | 'drawing' | 'text'
   input: string
   beforeText: string
   afterText: string
