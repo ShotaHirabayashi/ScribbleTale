@@ -201,16 +201,16 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
 
       {/* Toolbar */}
       <div
-        className="flex shrink-0 items-center justify-between gap-2 bg-black/40 px-2 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2"
+        className="flex shrink-0 flex-col gap-1.5 bg-black/40 px-2 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2"
         onTouchStart={(e) => e.stopPropagation()}
       >
-        {/* Colors */}
-        <div className="flex items-center gap-1 sm:gap-1.5">
+        {/* Colors row */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
           {COLORS.map((color) => (
             <button
               key={color.value}
               onClick={() => selectColor(color.value)}
-              className={`relative h-10 w-10 rounded-full border-2 transition-transform sm:h-11 sm:w-11 ${
+              className={`relative h-9 w-9 rounded-full border-2 transition-transform sm:h-10 sm:w-10 ${
                 selectedColor === color.value && !isEraser
                   ? 'scale-110 border-white'
                   : 'border-transparent hover:scale-105'
@@ -219,13 +219,13 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
               aria-label={color.name}
             >
               {selectedColor === color.value && !isEraser && (
-                <Check className="absolute inset-0 m-auto h-5 w-5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
+                <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] sm:h-5 sm:w-5" />
               )}
             </button>
           ))}
           <button
             onClick={() => setIsEraser(true)}
-            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-transform sm:h-11 sm:w-11 ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-transform sm:h-10 sm:w-10 ${
               isEraser
                 ? 'scale-110 border-white bg-white/30'
                 : 'border-transparent bg-white/20 hover:scale-105'
@@ -236,24 +236,24 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
           </button>
           <button
             onClick={handleClear}
-            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-transparent bg-white/20 transition-transform hover:scale-105 sm:h-11 sm:w-11"
+            className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-transparent bg-white/20 transition-transform hover:scale-105 sm:h-10 sm:w-10"
             aria-label="ぜんぶけす"
           >
             <Trash2 className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
           </button>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
+        {/* Action buttons row */}
+        <div className="flex items-center justify-center gap-3">
           <button
             onClick={onCancel}
-            className="rounded-full bg-white/20 px-4 py-2 font-serif text-sm font-bold text-white transition-all hover:bg-white/30 active:scale-95 sm:px-5 sm:py-2.5 sm:text-base"
+            className="rounded-full bg-white/20 px-5 py-2 font-serif text-sm font-bold text-white transition-all hover:bg-white/30 active:scale-95 sm:px-6 sm:py-2.5 sm:text-base"
           >
             やめる
           </button>
           <button
             onClick={handleComplete}
-            className="rounded-full bg-primary px-4 py-2 font-serif text-sm font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 sm:px-5 sm:py-2.5 sm:text-base"
+            className="rounded-full bg-primary px-5 py-2 font-serif text-sm font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 active:scale-95 sm:px-6 sm:py-2.5 sm:text-base"
           >
             できた！
           </button>

@@ -205,6 +205,7 @@ export function BookPage({
 
           {pagePhase === 'drawing' && onDrawingComplete && onDrawingCancel && (
             <DrawingOverlay
+              illustration={page.illustration}
               onComplete={onDrawingComplete}
               onCancel={onDrawingCancel}
             />
