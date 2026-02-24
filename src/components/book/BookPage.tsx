@@ -164,7 +164,22 @@ export function BookPage({
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />
         )}
       </div>
-      <div className={`min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4 ${isLastPage ? 'flex flex-col items-center gap-1 sm:gap-2' : ''}`}>
+      <div
+        className={`min-h-0 flex-[2] overflow-y-auto px-4 py-2 sm:px-6 sm:py-3 md:px-10 md:py-4 ${isLastPage ? 'flex flex-col items-center gap-1 sm:gap-2' : ''}`}
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+        onTouchStart={(e) => {
+          const el = e.currentTarget
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation()
+          }
+        }}
+        onTouchMove={(e) => {
+          const el = e.currentTarget
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation()
+          }
+        }}
+      >
         <StoryText
           key={`${page.id}-${page.modificationCount ?? 0}`}
           text={displayText}

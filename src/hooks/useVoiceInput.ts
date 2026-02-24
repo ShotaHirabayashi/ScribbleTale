@@ -14,6 +14,34 @@ interface UseVoiceInputOptions {
 }
 
 /**
+ * PCM 16kHz にダウンサンプリングする
+ * iOS Safari は AudioContext の sampleRate を 16000 にできないため、
+ * ネイティブ sampleRate (44100/48000) から 16000 に変換する
+ */
+function downsampleTo16k(inputData: Float32Array, inputSampleRate: number): Int16Array {
+  if (inputSampleRate === 16000) {
+    // リサンプリング不要: そのまま Int16 変換
+    const pcm = new Int16Array(inputData.length)
+    for (let i = 0; i < inputData.length; i++) {
+      const s = Math.max(-1, Math.min(1, inputData[i]))
+      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+    }
+    return pcm
+  }
+
+  // ダウンサンプリング
+  const ratio = inputSampleRate / 16000
+  const outputLength = Math.floor(inputData.length / ratio)
+  const pcm = new Int16Array(outputLength)
+  for (let i = 0; i < outputLength; i++) {
+    const srcIndex = Math.floor(i * ratio)
+    const s = Math.max(-1, Math.min(1, inputData[srcIndex]))
+    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+  }
+  return pcm
+}
+
+/**
  * 音声入力の統合フック
  *
  * Web Speech API で音声→テキスト変換し、
@@ -88,7 +116,20 @@ export function useVoiceInput({
   // ── Gemini Live API: 開始 ──
   const startLiveSession = useCallback(async () => {
     try {
-      // 1. APIキー取得（キャッシュ済みならスキップ）
+      // 1. マイクストリームを先に取得（iOS: ユーザージェスチャーコンテキスト内で取得する必要あり）
+      console.log('[useVoiceInput/Live] Requesting microphone access...')
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      })
+      mediaStreamRef.current = stream
+      setLivePermission(true)
+      console.log('[useVoiceInput/Live] Microphone access granted')
+
+      // 2. APIキー取得（キャッシュ済みならスキップ）
       if (!apiKeyRef.current) {
         const res = await fetch('/api/session-key')
         if (!res.ok) throw new Error('Failed to get session key')
@@ -96,14 +137,13 @@ export function useVoiceInput({
         if (!apiKey) throw new Error('No API key returned')
         apiKeyRef.current = apiKey
       }
-
       const apiKey = apiKeyRef.current!
 
-      // 2. 現在ページのテキスト取得
+      // 3. 現在ページのテキスト取得
       const currentPageText = pages[currentPageIndex]?.currentText
         || pages[currentPageIndex]?.text || ''
 
-      // 3. LiveSessionManager作成＋接続
+      // 4. LiveSessionManager作成＋接続（setupComplete まで待つ）
       const manager = new LiveSessionManager({
         apiKey,
         bookTitle,
@@ -121,7 +161,6 @@ export function useVoiceInput({
         },
         onEndCommentTime: (reason) => {
           console.log('[useVoiceInput/Live] End comment time:', reason)
-          // store.endCommentTime は冪等なので二重発火しても安全
           useStoryStore.getState().endCommentTime(
             reason === 'end_keyword' ? 'end_keyword' : 'silence_timeout'
           )
@@ -138,25 +177,19 @@ export function useVoiceInput({
         },
       })
       liveManagerRef.current = manager
-      await manager.connect()
+
+      console.log('[useVoiceInput/Live] Connecting to Gemini Live API...')
+      await manager.connect() // WebSocket OPEN + setupComplete まで待つ
       manager.setMuted(false)
       setLiveConnected(true)
-      console.log('[useVoiceInput/Live] Connected')
+      console.log('[useVoiceInput/Live] Connected and ready')
 
-      // 4. マイクストリーム開始
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      })
-      mediaStreamRef.current = stream
-      setLivePermission(true)
-
-      const audioContext = new AudioContext({ sampleRate: 16000 })
+      // 5. AudioContext を作成して音声ストリーミング開始
+      // iOS Safari: sampleRate を指定しない → ネイティブ sampleRate を使用
+      const audioContext = new AudioContext()
       audioContextRef.current = audioContext
+      const actualSampleRate = audioContext.sampleRate
+      console.log(`[useVoiceInput/Live] AudioContext sampleRate: ${actualSampleRate}`)
 
       // iOS Safari: AudioContext が suspended の場合 resume
       if (audioContext.state === 'suspended') {
@@ -164,17 +197,14 @@ export function useVoiceInput({
       }
 
       const source = audioContext.createMediaStreamSource(stream)
+      // bufferSize: 4096 ではなく、ダウンサンプリング後のチャンクサイズに合わせる
       const processor = audioContext.createScriptProcessor(4096, 1, 1)
       processorRef.current = processor
 
       processor.onaudioprocess = (event) => {
         const inputData = event.inputBuffer.getChannelData(0)
-        // Float32 → Int16 PCM変換
-        const pcmData = new Int16Array(inputData.length)
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]))
-          pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-        }
+        // ネイティブ sampleRate → 16kHz にダウンサンプリング
+        const pcmData = downsampleTo16k(inputData, actualSampleRate)
         // Base64エンコード
         const bytes = new Uint8Array(pcmData.buffer)
         let binary = ''
@@ -193,11 +223,13 @@ export function useVoiceInput({
       console.error('[useVoiceInput/Live] Start failed:', err)
       setLiveError(err instanceof Error ? err.message : String(err))
       setLivePermission(false)
+      setVoiceError('こえが きこえなかったよ')
+      setTimeout(() => setVoiceError(null), 3000)
       cleanupLiveSession()
     }
   }, [
     currentPageIndex, pages, bookTitle,
-    addPendingKeyword, setChildUtterance,
+    addPendingKeyword, setChildUtterance, setVoiceError,
     commentTime, cleanupLiveSession,
   ])
 

@@ -9,6 +9,7 @@
 const LIVE_API_MODEL = 'gemini-live-2.5-flash-preview'
 const MAX_RECONNECT_ATTEMPTS = 3
 const BASE_RECONNECT_DELAY_MS = 1000
+const CONNECT_TIMEOUT_MS = 10000
 
 export interface LiveSessionConfig {
   apiKey: string
@@ -20,7 +21,7 @@ export interface LiveSessionConfig {
   currentPageText: string
 }
 
-type LiveSessionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+type LiveSessionState = 'disconnected' | 'connecting' | 'connected' | 'ready' | 'error'
 
 export class LiveSessionManager {
   private ws: WebSocket | null = null
@@ -29,6 +30,8 @@ export class LiveSessionManager {
   private reconnectAttempts = 0
   private isMuted = true
   private setupComplete = false
+  private setupResolve: (() => void) | null = null
+  private setupReject: ((err: Error) => void) | null = null
 
   constructor(config: LiveSessionConfig) {
     this.config = config
@@ -38,43 +41,80 @@ export class LiveSessionManager {
     return this.state
   }
 
+  isReady(): boolean {
+    return this.state === 'ready' && this.setupComplete
+  }
+
+  /**
+   * WebSocket接続 → setup送信 → setupComplete受信 まで待つ
+   */
   async connect(): Promise<void> {
-    if (this.state === 'connected' || this.state === 'connecting') return
+    if (this.state === 'ready' || this.state === 'connecting') return
 
     this.state = 'connecting'
     this.setupComplete = false
 
-    try {
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.config.apiKey}`
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.config.apiKey}`
 
-      this.ws = new WebSocket(wsUrl)
+    return new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Connection timeout'))
+        this.disconnect()
+      }, CONNECT_TIMEOUT_MS)
 
-      this.ws.onopen = () => {
-        console.log('[LiveSession] WebSocket connected')
-        this.state = 'connected'
-        this.reconnectAttempts = 0
-        this.sendSetup()
+      this.setupResolve = () => {
+        clearTimeout(timeout)
+        resolve()
+      }
+      this.setupReject = (err: Error) => {
+        clearTimeout(timeout)
+        reject(err)
       }
 
-      this.ws.onmessage = (event) => {
-        this.handleMessage(event)
-      }
+      try {
+        this.ws = new WebSocket(wsUrl)
 
-      this.ws.onerror = (e) => {
-        console.error('[LiveSession] WebSocket error:', e)
+        this.ws.onopen = () => {
+          console.log('[LiveSession] WebSocket connected')
+          this.state = 'connected'
+          this.reconnectAttempts = 0
+          this.sendSetup()
+        }
+
+        this.ws.onmessage = (event) => {
+          this.handleMessage(event)
+        }
+
+        this.ws.onerror = (e) => {
+          console.error('[LiveSession] WebSocket error:', e)
+          this.state = 'error'
+          const err = new Error('WebSocket connection error')
+          this.config.onError(err)
+          this.setupReject?.(err)
+          this.setupResolve = null
+          this.setupReject = null
+        }
+
+        this.ws.onclose = (e) => {
+          console.warn('[LiveSession] WebSocket closed:', e.code, e.reason)
+          const wasReady = this.state === 'ready'
+          this.state = 'disconnected'
+          if (!wasReady && this.setupReject) {
+            this.setupReject(new Error(`WebSocket closed: ${e.code} ${e.reason}`))
+            this.setupResolve = null
+            this.setupReject = null
+          } else {
+            this.attemptReconnect()
+          }
+        }
+      } catch (error) {
+        clearTimeout(timeout)
         this.state = 'error'
-        this.config.onError(new Error('WebSocket connection error'))
+        const err = error instanceof Error ? error : new Error(String(error))
+        this.config.onError(err)
+        reject(err)
       }
-
-      this.ws.onclose = (e) => {
-        console.warn('[LiveSession] WebSocket closed:', e.code, e.reason)
-        this.state = 'disconnected'
-        this.attemptReconnect()
-      }
-    } catch (error) {
-      this.state = 'error'
-      this.config.onError(error instanceof Error ? error : new Error(String(error)))
-    }
+    })
   }
 
   private sendSetup(): void {
@@ -172,6 +212,10 @@ ${this.config.currentPageText}
       if (data.setupComplete) {
         console.log('[LiveSession] Setup complete')
         this.setupComplete = true
+        this.state = 'ready'
+        this.setupResolve?.()
+        this.setupResolve = null
+        this.setupReject = null
         return
       }
 
@@ -217,9 +261,9 @@ ${this.config.currentPageText}
 
   private audioSendCount = 0
 
-  /** 音声データを送信 */
+  /** 音声データを送信（setupComplete後のみ） */
   sendAudio(audioData: string): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isMuted) return
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isMuted || !this.setupComplete) return
 
     this.audioSendCount++
     if (this.audioSendCount % 50 === 1) {
@@ -271,6 +315,8 @@ ${this.config.currentPageText}
   }
 
   disconnect(): void {
+    this.setupResolve = null
+    this.setupReject = null
     if (this.ws) {
       this.ws.close()
       this.ws = null
