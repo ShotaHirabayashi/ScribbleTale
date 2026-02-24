@@ -9,8 +9,6 @@ import { ModificationLoading } from './ModificationLoading'
 import { ImageShimmer } from './ImageShimmer'
 import { WaitingExperience } from './WaitingExperience'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
-import { DrawingRecognizingModal } from './DrawingRecognizingModal'
-import { DrawingErrorModal } from './DrawingErrorModal'
 import { ConfirmationOverlay } from './ConfirmationOverlay'
 import { soundManager } from '@/lib/audio/sound-manager'
 import type { StoryPage } from '@/lib/types'
@@ -202,19 +200,7 @@ export function BookPage({
             )}
           </div>
 
-          {/* DrawingOverlay は transform 影響下で fixed が効かないため StoryBookViewer 側でレンダリング */}
-
-          {isRecognizingDrawing && (
-            <DrawingRecognizingModal />
-          )}
-
-          {drawingError && onDrawingRetry && onDrawingErrorClose && (
-            <DrawingErrorModal
-              message={drawingError}
-              onRetry={onDrawingRetry}
-              onClose={onDrawingErrorClose}
-            />
-          )}
+          {/* DrawingOverlay / RecognizingModal / ErrorModal は StoryBookViewer 側でレンダリング */}
 
           {pagePhase === 'drawingConfirm' && onDrawingConfirm && onDrawingReject && recognizedKeyword && drawingImageBase64 && (
             <DrawingConfirmOverlay

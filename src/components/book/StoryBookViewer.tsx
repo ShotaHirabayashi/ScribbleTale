@@ -411,11 +411,16 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
       </div>
 
       {/* DrawingOverlay: transform 影響外でレンダリングし fixed を正しく機能させる */}
-      {!readOnly && pagePhase === 'drawing' && (
+      {/* 認識中・エラー中もオーバーレイを維持し、内部でローディング/エラーを表示 */}
+      {!readOnly && (pagePhase === 'drawing' || isRecognizingDrawing || (drawingError && pagePhase !== 'drawingConfirm')) && (
         <DrawingOverlay
           illustration={displayPages[currentPage]?.illustration}
           onComplete={handleDrawingComplete}
           onCancel={handleDrawingCancel}
+          isRecognizing={isRecognizingDrawing}
+          error={drawingError}
+          onRetry={handleDrawingRetry}
+          onErrorClose={handleDrawingErrorClose}
         />
       )}
     </div>

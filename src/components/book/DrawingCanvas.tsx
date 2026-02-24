@@ -203,6 +203,8 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
       <div
         className="flex shrink-0 flex-col gap-1.5 bg-black/40 px-2 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2"
         onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
       >
         {/* Colors row */}
         <div className="flex items-center justify-center gap-1.5 sm:gap-2">
