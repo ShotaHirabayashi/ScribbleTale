@@ -9,7 +9,6 @@ import { ModificationLoading } from './ModificationLoading'
 import { ImageShimmer } from './ImageShimmer'
 import { WaitingExperience } from './WaitingExperience'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
-import { TextInputOverlay } from './TextInputOverlay'
 import { ConfirmationOverlay } from './ConfirmationOverlay'
 import { soundManager } from '@/lib/audio/sound-manager'
 import type { StoryPage } from '@/lib/types'
@@ -45,9 +44,7 @@ interface BookPageProps {
   voiceError?: string | null
   onDrawingRetry?: () => void
   onDrawingErrorClose?: () => void
-  onStartText?: () => void
   onTextSubmit?: (keyword: string) => void
-  onCancelText?: () => void
 }
 
 export function BookPage({
@@ -80,9 +77,7 @@ export function BookPage({
   voiceError,
   onDrawingRetry,
   onDrawingErrorClose,
-  onStartText,
   onTextSubmit,
-  onCancelText,
 }: BookPageProps) {
   // 表示するテキスト（改変済みの場合はcurrentTextを使用）
   const displayText = page.currentText || page.text
@@ -217,7 +212,6 @@ export function BookPage({
                 <CommentTimeButton
                   onStart={onStartCommentTime!}
                   onStartDrawing={onStartDrawing!}
-                  onStartText={onStartText}
                 />
               )
             )}
@@ -232,13 +226,6 @@ export function BookPage({
               onConfirm={onDrawingConfirm}
               onReject={onDrawingReject}
               onTextSubmit={onTextSubmit}
-            />
-          )}
-
-          {pagePhase === 'textInput' && onTextSubmit && onCancelText && (
-            <TextInputOverlay
-              onSubmit={onTextSubmit}
-              onCancel={onCancelText}
             />
           )}
 

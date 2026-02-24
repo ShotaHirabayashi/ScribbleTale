@@ -86,9 +86,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const drawingError = useStoryStore((s) => s.drawingError)
   const voiceError = useStoryStore((s) => s.voiceError)
   const setDrawingError = useStoryStore((s) => s.setDrawingError)
-  const startTextInput = useStoryStore((s) => s.startTextInput)
   const submitTextKeyword = useStoryStore((s) => s.submitTextKeyword)
-  const cancelTextInput = useStoryStore((s) => s.cancelTextInput)
   const handleStartDrawing = useCallback(() => {
     startDrawing()
   }, [startDrawing])
@@ -105,15 +103,9 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const handleDrawingErrorClose = useCallback(() => {
     setDrawingError(null)
   }, [setDrawingError])
-  const handleStartText = useCallback(() => {
-    startTextInput()
-  }, [startTextInput])
   const handleTextSubmit = useCallback((keyword: string) => {
     submitTextKeyword(keyword)
   }, [submitTextKeyword])
-  const handleCancelText = useCallback(() => {
-    cancelTextInput()
-  }, [cancelTextInput])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
@@ -173,7 +165,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       // drawing / drawingConfirm / confirming フェーズ中はスワイプ無効
-      if (pagePhase === 'drawing' || pagePhase === 'drawingConfirm' || pagePhase === 'confirming' || pagePhase === 'textInput') return
+      if (pagePhase === 'drawing' || pagePhase === 'drawingConfirm' || pagePhase === 'confirming') return
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
       const deltaY = e.changedTouches[0].clientY - touchStartY.current
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
@@ -187,6 +179,8 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   // Keyboard handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // テキスト入力中・描画確認中はキーボードナビ無効
+      if (pagePhase === 'drawingConfirm' || pagePhase === 'commentTime' || pagePhase === 'drawing' || pagePhase === 'confirming') return
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
         goToNextPage()
@@ -199,7 +193,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [goToNextPage, goToPrevPage, router])
+  }, [goToNextPage, goToPrevPage, router, pagePhase])
 
   // transitioning フェーズ検知 → CSS flip アニメーション連動
   useEffect(() => {
@@ -313,9 +307,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
                     voiceError={isPageActive && !readOnly ? voiceError : undefined}
                     onDrawingRetry={isPageActive && !readOnly ? handleDrawingRetry : undefined}
                     onDrawingErrorClose={isPageActive && !readOnly ? handleDrawingErrorClose : undefined}
-                    onStartText={isPageActive && !readOnly ? handleStartText : undefined}
                     onTextSubmit={isPageActive && !readOnly ? handleTextSubmit : undefined}
-                    onCancelText={isPageActive && !readOnly ? handleCancelText : undefined}
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/5 to-transparent" />

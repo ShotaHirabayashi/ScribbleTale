@@ -1,14 +1,13 @@
 'use client'
 
-import { Mic, Pencil, Keyboard } from 'lucide-react'
+import { Mic, Pencil } from 'lucide-react'
 
 interface CommentTimeButtonProps {
   onStart: () => void
   onStartDrawing: () => void
-  onStartText?: () => void
 }
 
-export function CommentTimeButton({ onStart, onStartDrawing, onStartText }: CommentTimeButtonProps) {
+export function CommentTimeButton({ onStart, onStartDrawing }: CommentTimeButtonProps) {
   return (
     <div className="flex justify-center pt-2 pb-1">
       <div className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -28,16 +27,6 @@ export function CommentTimeButton({ onStart, onStartDrawing, onStartText }: Comm
           <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
           おえかき
         </button>
-        {onStartText && (
-          <button
-            onClick={onStartText}
-            className="flex items-center gap-2 rounded-full bg-background/80 px-5 py-3 font-serif text-sm font-bold text-foreground shadow-md backdrop-blur-sm transition-all hover:bg-background hover:scale-105 active:scale-95 sm:text-base"
-            aria-label="もじでにゅうりょく"
-          >
-            <Keyboard className="h-4 w-4 sm:h-5 sm:w-5" />
-            もじ
-          </button>
-        )}
       </div>
     </div>
   )
