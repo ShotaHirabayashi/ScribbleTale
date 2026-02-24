@@ -150,7 +150,9 @@ export default async function SharedStoryPage({ params }: { params: Params }) {
       ? storyData.pages.map((page, index) => ({
           ...page,
           illustration: page.illustration || baseStory.pages[index]?.illustration || '',
-          text: page.text || page.currentText || baseStory.pages[index]?.text || '',
+          // currentText（改変後テキスト）を優先、未設定なら text にフォールバック
+          currentText: page.currentText || page.text || baseStory.pages[index]?.text || '',
+          text: page.currentText || page.text || baseStory.pages[index]?.text || '',
         }))
       : baseStory.pages,
   }

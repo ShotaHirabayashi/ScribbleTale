@@ -126,6 +126,7 @@ export function CoverCreator({ story, sessionId }: CoverCreatorProps) {
     const storyPages = effectivePages.map((page, index) => ({
       ...page,
       illustration: page.illustration || story.pages[index]?.illustration || "",
+      currentText: page.currentText || page.text || story.pages[index]?.text || "",
     }))
     const uploadedPages = await Promise.all(
       storyPages.map(async (page, index) => {

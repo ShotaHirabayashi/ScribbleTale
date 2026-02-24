@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { DrawingCanvas } from './DrawingCanvas'
 
@@ -11,15 +12,21 @@ interface DrawingOverlayProps {
 }
 
 export function DrawingOverlay({ illustration, onComplete, onCancel }: DrawingOverlayProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // iOS Safari の長押しコンテキストメニューを完全にブロック
   const preventContextMenu = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
     e.stopPropagation()
   }, [])
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
       style={{
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -58,4 +65,8 @@ export function DrawingOverlay({ illustration, onComplete, onCancel }: DrawingOv
       </div>
     </div>
   )
+
+  // SSR時はレンダリングしない、クライアントではPortalでbody直下にマウント
+  if (!mounted) return null
+  return createPortal(overlay, document.body)
 }

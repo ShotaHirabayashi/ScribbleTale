@@ -14,10 +14,12 @@ service firebase.storage {
       allow write: if false;
     }
 
-    // ストーリー画像: 読み取りのみ許可、書き込みはAdmin SDK（サーバーサイド）のみ
+    // ストーリー画像: 読み書き許可（クライアントSDKからアップロード可能）
+    // サイズ制限: 5MB以下、画像ファイルのみ
     match /stories/{allPaths=**} {
       allow read: if true;
-      allow write: if false;
+      allow write: if request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     // その他のパスは全てブロック

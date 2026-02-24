@@ -275,17 +275,6 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         ? [...state.modifications, modification]
         : state.modifications
 
-      // Firestore自動保存（バックグラウンド、失敗してもUXに影響しない）
-      if (state.storySessionId) {
-        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, newModifications, state.characterStates).catch(() => {
-            // AbortError等を含む全エラーを静かに無視（UXに影響しない）
-          })
-        }).catch(() => {
-          // dynamic import失敗も無視
-        })
-      }
-
       return {
         pages: newPages,
         modificationPhase: 'complete',
@@ -293,6 +282,52 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         modifications: newModifications,
       }
     })
+
+    // Firestore自動保存 + data: URI画像のStorageアップロード（バックグラウンド）
+    const { storySessionId } = get()
+    if (storySessionId) {
+      if (newIllustration && newIllustration.startsWith('data:')) {
+        // data: URI画像をFirebase Storageにアップロードし、URLに差し替えてからFirestore保存
+        import('@/lib/firebase/storage').then(({ uploadImage, getStoryImagePath }) => {
+          const base64Data = newIllustration.split(',')[1]
+          if (!base64Data) return
+          const mimeMatch = newIllustration.match(/^data:(image\/\w+);/)
+          const mimeType = mimeMatch?.[1] || 'image/png'
+          const path = getStoryImagePath(storySessionId, targetPageIndex)
+          uploadImage(path, base64Data, mimeType).then((downloadUrl) => {
+            // Zustand内の画像をStorage URLに差し替え
+            set((state) => {
+              const updatedPages = [...state.pages]
+              if (targetPageIndex >= 0 && targetPageIndex < updatedPages.length &&
+                  updatedPages[targetPageIndex].illustration === newIllustration) {
+                updatedPages[targetPageIndex] = {
+                  ...updatedPages[targetPageIndex],
+                  illustration: downloadUrl,
+                }
+              }
+              return { pages: updatedPages }
+            })
+            // Firestore保存（Storage URL反映済み）
+            const current = get()
+            import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+              updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+            }).catch(() => {})
+          }).catch(() => {
+            // アップロード失敗時もFirestore保存は試みる（data: URIはサニタイズされる）
+            const current = get()
+            import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+              updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+            }).catch(() => {})
+          })
+        }).catch(() => {})
+      } else {
+        // 画像なし or 既にURL → そのままFirestore保存
+        const current = get()
+        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+          updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+        }).catch(() => {})
+      }
+    }
   },
 
   applyTextFirst: (targetPageIndex, newText, modification) => {
@@ -349,6 +384,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   applyImageUpdate: (targetPageIndex, newIllustration) => {
+    // まずZustandを即座に更新してUI反映
     set((state) => {
       const newPages = [...state.pages]
       if (targetPageIndex >= 0 && targetPageIndex < newPages.length) {
@@ -359,19 +395,55 @@ export const useStoryStore = create<StoryState>((set, get) => ({
           previousIllustration: undefined,
         }
       }
-
-      // Firestore自動保存（バックグラウンド）
-      if (state.storySessionId) {
-        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, state.modifications, state.characterStates).catch(() => {})
-        }).catch(() => {})
-      }
-
       return {
         pages: newPages,
         modificationPhase: 'complete',
       }
     })
+
+    // data: URI の場合、バックグラウンドでFirebase Storageにアップロードし URL に差し替え
+    const { storySessionId } = get()
+    if (storySessionId && newIllustration && newIllustration.startsWith('data:')) {
+      import('@/lib/firebase/storage').then(({ uploadImage, getStoryImagePath }) => {
+        const base64Data = newIllustration.split(',')[1]
+        if (!base64Data) return
+        const mimeMatch = newIllustration.match(/^data:(image\/\w+);/)
+        const mimeType = mimeMatch?.[1] || 'image/png'
+        const path = getStoryImagePath(storySessionId, targetPageIndex)
+        uploadImage(path, base64Data, mimeType).then((downloadUrl) => {
+          // Zustand内の画像をStorage URLに差し替え
+          set((state) => {
+            const updatedPages = [...state.pages]
+            if (targetPageIndex >= 0 && targetPageIndex < updatedPages.length &&
+                updatedPages[targetPageIndex].illustration === newIllustration) {
+              updatedPages[targetPageIndex] = {
+                ...updatedPages[targetPageIndex],
+                illustration: downloadUrl,
+              }
+            }
+            return { pages: updatedPages }
+          })
+          // Firestore自動保存（Storage URL反映済み）
+          const current = get()
+          import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+            updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+          }).catch(() => {})
+        }).catch((err) => {
+          console.warn('[story-store] Image upload failed, falling back to Firestore save:', err)
+          // アップロード失敗してもFirestore保存は試みる（data: URIはサニタイズされる）
+          const current = get()
+          import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+            updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+          }).catch(() => {})
+        })
+      }).catch(() => {})
+    } else if (storySessionId) {
+      // data: URI以外（既にStorage URL等）の場合はそのままFirestore保存
+      const current = get()
+      import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+        updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+      }).catch(() => {})
+    }
   },
 
   handleImageFailure: (targetPageIndex) => {
@@ -549,19 +621,53 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         }
       }
 
-      // Firestore自動保存
-      if (state.storySessionId) {
-        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
-          updateStoryPages(state.storySessionId!, newPages, state.modifications, state.characterStates).catch(() => {})
-        }).catch(() => {})
-      }
-
       return {
         pages: newPages,
         modificationPhase: 'idle',
         pagePhase: 'reading',
       }
     })
+
+    // Firestore自動保存 + data: URI画像のStorageアップロード（バックグラウンド）
+    const { storySessionId } = get()
+    if (storySessionId) {
+      if (newIllustration && newIllustration.startsWith('data:')) {
+        import('@/lib/firebase/storage').then(({ uploadImage, getStoryImagePath }) => {
+          const base64Data = newIllustration.split(',')[1]
+          if (!base64Data) return
+          const mimeMatch = newIllustration.match(/^data:(image\/\w+);/)
+          const mimeType = mimeMatch?.[1] || 'image/png'
+          const path = getStoryImagePath(storySessionId, targetPageIndex)
+          uploadImage(path, base64Data, mimeType).then((downloadUrl) => {
+            set((state) => {
+              const updatedPages = [...state.pages]
+              if (targetPageIndex >= 0 && targetPageIndex < updatedPages.length &&
+                  updatedPages[targetPageIndex].illustration === newIllustration) {
+                updatedPages[targetPageIndex] = {
+                  ...updatedPages[targetPageIndex],
+                  illustration: downloadUrl,
+                }
+              }
+              return { pages: updatedPages }
+            })
+            const current = get()
+            import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+              updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+            }).catch(() => {})
+          }).catch(() => {
+            const current = get()
+            import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+              updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+            }).catch(() => {})
+          })
+        }).catch(() => {})
+      } else {
+        const current = get()
+        import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+          updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+        }).catch(() => {})
+      }
+    }
   },
 
   clearContextRegenerationFlag: (pageIndex) => {

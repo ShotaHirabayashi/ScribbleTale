@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
           shareToken,
           isShared: true,
         }
-        if (title) metaData.title = title
-        if (authorName) metaData.authorName = authorName
-        if (coverImage) metaData.coverImage = coverImage
-        if (bgColor) metaData.bgColor = bgColor
-        if (frameStyle) metaData.frameStyle = frameStyle
+        if (title != null) metaData.title = title
+        if (authorName != null) metaData.authorName = authorName
+        if (coverImage != null) metaData.coverImage = coverImage
+        if (bgColor != null) metaData.bgColor = bgColor
+        if (frameStyle != null) metaData.frameStyle = frameStyle
         // ページ画像をStorage URLに差し替え済みのデータで上書き
         if (pages) {
           metaData.pages = pages
