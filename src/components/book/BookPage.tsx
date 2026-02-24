@@ -121,9 +121,18 @@ export function BookPage({
             src={page.illustration}
             alt={page.alt}
             fill
-            className="object-cover"
+            className={`object-cover transition-all duration-1000 ${
+              page.illustrationLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            } ${showCompletionEffect ? 'animate-image-reveal' : ''}`}
             priority
           />
+          {showShimmer && (
+            page.illustrationLoading ? (
+              <WaitingExperience previousIllustration={page.previousIllustration} />
+            ) : (
+              <ImageShimmer previousIllustration={page.previousIllustration} />
+            )
+          )}
         </div>
         <div className="mt-3 shrink-0 text-center sm:mt-4">
           <h2 className="font-serif text-xl tracking-wider text-[var(--storybook-brown)] sm:text-2xl md:text-3xl">

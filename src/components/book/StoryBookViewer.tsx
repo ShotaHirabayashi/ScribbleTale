@@ -119,17 +119,27 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const applyImageUpdate = useStoryStore((s) => s.applyImageUpdate)
   const handleImageFailure = useStoryStore((s) => s.handleImageFailure)
 
-  const regenerateRemixImages = useCallback(async (remixedPages: StoryPage[]) => {
+  const regenerateRemixImages = useCallback(async (remixedPages: StoryPage[], storyId: string) => {
     // 全ページ（カバー含む）の画像をバックグラウンドで再生成
-    // 現在表示中のページを優先し、残りは順次生成
     const generateForPage = async (i: number) => {
       const page = remixedPages[i]
       const sceneDescription = page.currentText || page.text
+      // カバー(index 0)は表紙用プロンプトで生成
+      const isCoverPage = i === 0
+      const body = isCoverPage
+        ? {
+            sceneDescription,
+            isCover: true,
+            title: sceneDescription.split('\n')[0] || story.title,
+            storyId,
+            storySummary: remixedPages.slice(1, 4).map((p) => p.currentText || p.text).join(' '),
+          }
+        : { sceneDescription }
       try {
         const response = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sceneDescription }),
+          body: JSON.stringify(body),
         })
         if (response.ok) {
           const result = await response.json()
@@ -150,7 +160,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
     for (let i = 2; i < remixedPages.length; i++) {
       await generateForPage(i)
     }
-  }, [applyImageUpdate, handleImageFailure])
+  }, [applyImageUpdate, handleImageFailure, story.title])
 
   // Story Remix 完了ハンドラ
   const handleRemixComplete = useCallback((remixedPages: StoryPage[] | null, boldness: ModificationBoldness, remixPromptText: string | null) => {
@@ -159,10 +169,10 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
       setRemixPrompt(remixPromptText)
       applyRemix(remixedPages)
       // バックグラウンドで全ページの画像を再生成
-      regenerateRemixImages(remixedPages)
+      regenerateRemixImages(remixedPages, bookId || story.id)
     }
     setShowRemixOverlay(false)
-  }, [setBoldness, setRemixPrompt, applyRemix, regenerateRemixImages])
+  }, [setBoldness, setRemixPrompt, applyRemix, regenerateRemixImages, bookId, story.id])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({

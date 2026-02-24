@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateImage } from '@/lib/gemini/image-generator'
-import { buildImagePrompt } from '@/lib/gemini/prompts'
+import { buildImagePrompt, buildCoverImagePrompt } from '@/lib/gemini/prompts'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { sceneDescription, keyword, referenceImageBase64 } = body
+    const { sceneDescription, keyword, referenceImageBase64, isCover, title, storyId, storySummary } = body
 
     if (!sceneDescription) {
       return NextResponse.json(
@@ -22,7 +22,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const prompt = buildImagePrompt(sceneDescription, keyword)
+    // カバー画像の場合は表紙専用プロンプトを使用
+    const prompt = isCover && title && storyId
+      ? buildCoverImagePrompt({ title, storyId, storySummary: storySummary || sceneDescription })
+      : buildImagePrompt(sceneDescription, keyword)
     const result = await generateImage(prompt, apiKey, referenceImageBase64)
 
     return NextResponse.json({
