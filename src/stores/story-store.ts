@@ -7,7 +7,9 @@ import type {
   Modification,
   CommentTimeEndReason,
   CharacterState,
+  ModificationBoldness,
 } from '@/lib/types'
+import { getBoldnessConfig } from '@/lib/story/boldness'
 import { buildDynamicBgmPrompt, getBgmPrompts, type MusicPromptConfig } from '@/lib/audio/music-prompts'
 
 interface StoryState {
@@ -44,6 +46,11 @@ interface StoryState {
   shareToken: string | null
   isShared: boolean
   isSharing: boolean
+
+  // ── Story Remix ──
+  remixPrompt: string | null
+  isRemixing: boolean
+  boldness: ModificationBoldness
 
   // ── BGMオーバーライド ──
   bgmOverride: MusicPromptConfig | null
@@ -100,6 +107,10 @@ interface StoryState {
   setDrawingError: (error: string | null) => void
   setVoiceError: (error: string | null) => void
   submitTextKeyword: (keyword: string) => void
+  setRemixPrompt: (prompt: string | null) => void
+  applyRemix: (remixedPages: StoryPage[]) => void
+  setBoldness: (boldness: ModificationBoldness) => void
+  setIsRemixing: (flag: boolean) => void
   shareStory: () => Promise<string | null>
 }
 
@@ -121,6 +132,9 @@ const initialState = {
   isRecognizingDrawing: false,
   drawingError: null as string | null,
   voiceError: null as string | null,
+  remixPrompt: null as string | null,
+  isRemixing: false,
+  boldness: 'normal' as ModificationBoldness,
   bgmOverride: null as MusicPromptConfig | null,
   characterStates: [] as CharacterState[],
   shareToken: null as string | null,
@@ -188,10 +202,11 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   endCommentTime: (reason) => {
-    const { pendingKeywords, currentPageIndex, pages } = get()
+    const { pendingKeywords, currentPageIndex, pages, boldness } = get()
     const keyword = pendingKeywords.length > 0 ? pendingKeywords[pendingKeywords.length - 1] : null
     const currentPage = pages[currentPageIndex]
     const modCount = currentPage?.modificationCount ?? 0
+    const config = getBoldnessConfig(boldness)
 
     set({
       isCommentTimeActive: false,
@@ -199,7 +214,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: keyword,
     })
 
-    if (keyword && modCount < 2) {
+    if (keyword && modCount < config.maxModifications) {
       // キーワード（発話テキスト）があり、改変回数制限内なら改変開始
       set({ pagePhase: 'modifying' })
     } else if (reason === 'manual_skip') {
@@ -504,12 +519,13 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   confirmDrawing: () => {
-    const { recognizedKeyword, currentPageIndex, pages } = get()
+    const { recognizedKeyword, currentPageIndex, pages, boldness } = get()
     if (!recognizedKeyword) return
 
     // 改変回数制限チェック
     const currentPage = pages[currentPageIndex]
-    if ((currentPage?.modificationCount ?? 0) >= 2) {
+    const config = getBoldnessConfig(boldness)
+    if ((currentPage?.modificationCount ?? 0) >= config.maxModifications) {
       set({ pagePhase: 'readingComplete' })
       return
     }
@@ -693,9 +709,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   submitTextKeyword: (keyword) => {
-    const { currentPageIndex, pages } = get()
+    const { currentPageIndex, pages, boldness } = get()
     const currentPage = pages[currentPageIndex]
-    if ((currentPage?.modificationCount ?? 0) >= 2) {
+    const config = getBoldnessConfig(boldness)
+    if ((currentPage?.modificationCount ?? 0) >= config.maxModifications) {
       set({ pagePhase: 'readingComplete' })
       return
     }
@@ -712,6 +729,34 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       selectedKeyword: extractionResult,
       pagePhase: 'modifying',
     }))
+  },
+
+  setRemixPrompt: (prompt) => {
+    set({ remixPrompt: prompt })
+  },
+
+  applyRemix: (remixedPages) => {
+    set((state) => ({
+      pages: remixedPages,
+      isRemixing: false,
+    }))
+
+    // Firestore自動保存
+    const { storySessionId } = get()
+    if (storySessionId) {
+      const current = get()
+      import('@/lib/firebase/firestore').then(({ updateStoryPages }) => {
+        updateStoryPages(storySessionId, current.pages, current.modifications, current.characterStates).catch(() => {})
+      }).catch(() => {})
+    }
+  },
+
+  setBoldness: (boldness) => {
+    set({ boldness })
+  },
+
+  setIsRemixing: (flag) => {
+    set({ isRemixing: flag })
   },
 
   shareStory: async () => {

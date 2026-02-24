@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import type { StoryPage, CharacterState } from '@/lib/types'
+import type { StoryPage, CharacterState, ModificationBoldness } from '@/lib/types'
 import type { PagePhase, ModificationPhase } from '@/lib/types'
 
 interface PrefetchResult {
@@ -21,8 +21,10 @@ export function usePrefetchRegeneration(params: {
   modificationPhase: ModificationPhase
   bookId: string | null
   characterStates: CharacterState[]
+  boldness?: ModificationBoldness
+  remixPrompt?: string | null
 }) {
-  const { pages, currentPageIndex, pagePhase, modificationPhase, bookId, characterStates } = params
+  const { pages, currentPageIndex, pagePhase, modificationPhase, bookId, characterStates, boldness, remixPrompt } = params
 
   // キャッシュ: pageIndex → PrefetchResult
   const cacheRef = useRef(new Map<number, PrefetchResult>())
@@ -72,6 +74,8 @@ export function usePrefetchRegeneration(params: {
             currentPageIndex: nextPageIndex,
             pages: lightPages,
             characterStates,
+            boldnessLevel: boldness,
+            remixPrompt: remixPrompt || undefined,
           }),
           signal: controller.signal,
         })
@@ -121,7 +125,7 @@ export function usePrefetchRegeneration(params: {
     return () => {
       controller.abort()
     }
-  }, [pagePhase, modificationPhase, currentPageIndex, pages, bookId, characterStates])
+  }, [pagePhase, modificationPhase, currentPageIndex, pages, bookId, characterStates, boldness, remixPrompt])
 
   // キャッシュからプリフェッチ結果を取得
   const consumeCache = useCallback((pageIndex: number): PrefetchResult | null => {

@@ -1,3 +1,22 @@
+// ── 改変レベル ──
+
+/** 改変の大胆さレベル */
+export type ModificationBoldness = 'gentle' | 'normal' | 'bold' | 'wild'
+
+/** 改変レベルごとの設定 */
+export interface BoldnessConfig {
+  /** pageRole を厳守するか */
+  enforcePageRole: boolean
+  /** fixedElements の扱い: 'strict' | 'loose' | 'ignore' */
+  fixedElementsMode: 'strict' | 'loose' | 'ignore'
+  /** 整合性チェックモード: 'strict' | 'relaxed' | 'off' */
+  consistencyMode: 'strict' | 'relaxed' | 'off'
+  /** 最大改変回数 */
+  maxModifications: number
+  /** プロンプトに追加するガイダンス */
+  promptGuidance: string
+}
+
 // ── 既存型（後方互換維持） ──
 
 export interface StoryPage {
@@ -153,6 +172,10 @@ export interface StorySession {
   isShared: boolean
   createdAt: number
   updatedAt: number
+  /** 改変の大胆さレベル */
+  baseBoldness?: ModificationBoldness
+  /** リミックスプロンプト（Story Remix使用時） */
+  remixPrompt?: string
 }
 
 /** 共有トークンデータ */

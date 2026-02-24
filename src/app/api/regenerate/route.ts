@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { regeneratePageInContext } from '@/lib/story/engine'
+import { getBoldnessConfig } from '@/lib/story/boldness'
+import type { ModificationBoldness } from '@/lib/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +14,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { bookTitle, currentPageIndex, pages, characterStates } = body
+    const { bookTitle, currentPageIndex, pages, characterStates, boldnessLevel, remixPrompt } = body as {
+      bookTitle: string
+      currentPageIndex: number
+      pages: unknown[]
+      characterStates?: unknown[]
+      boldnessLevel?: ModificationBoldness
+      remixPrompt?: string
+    }
 
     if (!bookTitle || currentPageIndex == null || !pages) {
       return NextResponse.json(
@@ -21,12 +30,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const boldnessConfig = boldnessLevel ? getBoldnessConfig(boldnessLevel) : undefined
+
     const result = await regeneratePageInContext({
       bookTitle,
       currentPageIndex,
-      pages,
+      pages: pages as import('@/lib/types').StoryPage[],
       apiKey,
-      characterStates,
+      characterStates: characterStates as import('@/lib/types').CharacterState[] | undefined,
+      boldnessConfig,
+      remixPrompt,
     })
 
     return NextResponse.json({

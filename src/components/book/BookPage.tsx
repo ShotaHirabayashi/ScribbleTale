@@ -22,6 +22,7 @@ interface BookPageProps {
   readOnly?: boolean
   pagePhase?: PagePhase
   modificationPhase?: ModificationPhase
+  maxModifications?: number
   commentTimeRemainingMs?: number
   childUtterance?: string | null
   onReadingComplete?: () => void
@@ -78,6 +79,7 @@ export function BookPage({
   onDrawingRetry,
   onDrawingErrorClose,
   onTextSubmit,
+  maxModifications = 2,
 }: BookPageProps) {
   // 表示するテキスト（改変済みの場合はcurrentTextを使用）
   const displayText = page.currentText || page.text
@@ -202,7 +204,7 @@ export function BookPage({
         <>
           <div className="shrink-0 h-[3.5rem] px-4 sm:px-6 md:px-10">
             {pagePhase === 'readingComplete' && canShowCommentTimeButton && (
-              (page.modificationCount ?? 0) >= 2 ? (
+              (page.modificationCount ?? 0) >= maxModifications ? (
                 <div className="flex justify-center pt-2 pb-1 animate-in fade-in duration-500">
                   <p className="font-serif text-sm text-muted-foreground">
                     もう たくさん かえたね！つぎに すすもう

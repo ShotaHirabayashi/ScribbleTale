@@ -4,7 +4,7 @@ import { momotaroCharacters } from './characters/momotaro-chars'
 import { akazukinCharacters } from './characters/akazukin-chars'
 import { buildConsistencyCheckPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
-import type { CharacterAgent, CharacterReaction, CharacterState, OrchestratorResult, StoryPage } from '@/lib/types'
+import type { CharacterAgent, CharacterReaction, CharacterState, OrchestratorResult, StoryPage, BoldnessConfig } from '@/lib/types'
 
 const TEXT_MODEL = 'gemini-3-flash-preview'
 
@@ -24,8 +24,9 @@ export async function orchestrate(params: {
   previousPages: { pageNumber: number; currentText: string }[]
   apiKey: string
   characterStates?: CharacterState[]
+  boldnessConfig?: BoldnessConfig
 }): Promise<OrchestratorResult> {
-  const { bookId, bookTitle, keyword, childUtterance, targetPage, modifiedText, previousPages, apiKey, characterStates } = params
+  const { bookId, bookTitle, keyword, childUtterance, targetPage, modifiedText, previousPages, apiKey, characterStates, boldnessConfig } = params
 
   const allCharacters = characterMap[bookId] || []
   const pageNumber = targetPage.pageNumber || targetPage.id
@@ -83,6 +84,7 @@ export async function orchestrate(params: {
       apiKey,
       characterStates,
       pageNumber,
+      boldnessConfig,
     }),
   ])
 
@@ -127,8 +129,14 @@ async function checkConsistency(params: {
   apiKey: string
   characterStates?: CharacterState[]
   pageNumber?: number
+  boldnessConfig?: BoldnessConfig
 }): Promise<{ approved: boolean; correctedText: string; characterUpdates?: CharacterState[] }> {
-  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, apiKey, characterStates, pageNumber } = params
+  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, apiKey, characterStates, pageNumber, boldnessConfig } = params
+
+  // consistencyMode === 'off' → チェックスキップ
+  if (boldnessConfig?.consistencyMode === 'off') {
+    return { approved: true, correctedText: modifiedText }
+  }
 
   try {
     const genai = new GoogleGenAI({ apiKey })
@@ -142,6 +150,7 @@ async function checkConsistency(params: {
       childUtterance,
       characterStates,
       pageNumber,
+      boldnessConfig,
     })
 
     const response = await genai.models.generateContent({

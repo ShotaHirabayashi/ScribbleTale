@@ -5,7 +5,7 @@ natural paper texture, minimal detail, consistent character design,
 portrait orientation (3:4 aspect ratio), vertical composition.
 CRITICAL: Do NOT include any text, letters, words, titles, numbers, or characters in the image. The illustration must be purely visual with NO text of any kind.`
 
-import type { CharacterState } from '@/lib/types'
+import type { CharacterState, BoldnessConfig } from '@/lib/types'
 
 /** キャラクター状態をプロンプト用テキストに変換 */
 export function buildCharacterStatesSection(characterStates: CharacterState[]): string {
@@ -52,8 +52,10 @@ export function buildModificationPrompt(params: {
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
   characterStates?: CharacterState[]
+  boldnessConfig?: BoldnessConfig
+  remixPrompt?: string
 }): string {
-  const { bookTitle, pageRole, originalText, keyword, childUtterance, fixedElements, previousPages, characterStates } = params
+  const { bookTitle, pageRole, originalText, keyword, childUtterance, fixedElements, previousPages, characterStates, boldnessConfig, remixPrompt } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
@@ -65,16 +67,49 @@ export function buildModificationPrompt(params: {
 
   const charSection = characterStates ? buildCharacterStatesSection(characterStates) : ''
 
-  return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
+  // boldnessConfig に応じてルールを動的生成
+  const rules: string[] = []
+  if (boldnessConfig?.enforcePageRole) {
+    rules.push(`このページの役割「${pageRole}」は必ず守ってください（固定要素）`)
+  } else if (boldnessConfig) {
+    rules.push(`このページの元の役割は「${pageRole}」ですが、子どもの発言に合わせて自由に変えてもかまいません`)
+  } else {
+    rules.push(`このページの役割「${pageRole}」は必ず守ってください（固定要素）`)
+  }
 
+  if (!boldnessConfig || boldnessConfig.fixedElementsMode === 'strict') {
+    rules.push(`固定要素: ${fixedElements.join(', ')}`)
+  } else if (boldnessConfig.fixedElementsMode === 'loose') {
+    rules.push(`固定要素（できるだけ守ってください）: ${fixedElements.join(', ')}`)
+  }
+  // 'ignore' の場合は fixedElements のルールを追加しない
+
+  rules.push('子どもの発言の意図をできるだけ反映して物語を書き換えてください')
+  rules.push('ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください')
+  rules.push('文章は4〜6行程度にしてください')
+
+  if (!boldnessConfig || boldnessConfig.consistencyMode !== 'off') {
+    rules.push('これまでの物語の流れと矛盾しないようにしてください')
+  } else {
+    rules.push('これまでの物語と大きく矛盾しなければ、新しい展開も歓迎です')
+  }
+
+  rules.push('キャラクターの現在の状態（見た目・性格の変化）を必ず反映してください')
+
+  const rulesSection = rules.map((r, i) => `${i + 1}. ${r}`).join('\n')
+
+  const guidanceSection = boldnessConfig?.promptGuidance
+    ? `\n## 改変の方針\n${boldnessConfig.promptGuidance}\n`
+    : ''
+
+  const remixSection = remixPrompt
+    ? `\n## この物語のカスタマイズ設定\n「${remixPrompt}」\n`
+    : ''
+
+  return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
+${remixSection}${guidanceSection}
 ## ルール
-1. このページの役割「${pageRole}」は必ず守ってください（固定要素）
-2. 固定要素: ${fixedElements.join(', ')}
-3. 子どもの発言の意図をできるだけ反映して物語を書き換えてください
-4. ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください
-5. 文章は4〜6行程度にしてください
-6. これまでの物語の流れと矛盾しないようにしてください
-7. キャラクターの現在の状態（見た目・性格の変化）を必ず反映してください
+${rulesSection}
 
 ## これまでの物語
 ${prevContext || 'なし（最初のページ）'}
@@ -139,8 +174,10 @@ export function buildContextRegenerationPrompt(params: {
   fixedElements: string[]
   previousPages: { pageNumber: number; currentText: string }[]
   characterStates?: CharacterState[]
+  boldnessConfig?: BoldnessConfig
+  remixPrompt?: string
 }): string {
-  const { bookTitle, pageRole, originalText, fixedElements, previousPages, characterStates } = params
+  const { bookTitle, pageRole, originalText, fixedElements, previousPages, characterStates, boldnessConfig, remixPrompt } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
@@ -148,16 +185,36 @@ export function buildContextRegenerationPrompt(params: {
 
   const charSection = characterStates ? buildCharacterStatesSection(characterStates) : ''
 
-  return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
+  // boldnessConfig に応じてルールを動的生成
+  const rules: string[] = []
+  if (boldnessConfig?.enforcePageRole === false) {
+    rules.push(`このページの元の役割は「${pageRole}」ですが、前のページの流れに合わせて自由に変えてもかまいません`)
+  } else {
+    rules.push(`このページの役割「${pageRole}」は必ず守ってください（固定要素）`)
+  }
 
+  if (!boldnessConfig || boldnessConfig.fixedElementsMode === 'strict') {
+    rules.push(`固定要素: ${fixedElements.join(', ')}`)
+  } else if (boldnessConfig.fixedElementsMode === 'loose') {
+    rules.push(`固定要素（できるだけ守ってください）: ${fixedElements.join(', ')}`)
+  }
+
+  rules.push('これまでの物語の流れ（改変含む）を踏まえて、このページを自然に書き換えてください')
+  rules.push('ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください')
+  rules.push('文章は4〜6行程度にしてください')
+  rules.push('これまでの物語の流れと矛盾しないようにしてください')
+  rules.push('キャラクターの現在の状態（見た目・性格の変化）を必ず反映してください')
+
+  const rulesSection = rules.map((r, i) => `${i + 1}. ${r}`).join('\n')
+
+  const remixSection = remixPrompt
+    ? `\n## この物語のカスタマイズ設定\n「${remixPrompt}」\n`
+    : ''
+
+  return `あなたは子供向け絵本「${bookTitle}」の物語を書き換える作家です。
+${remixSection}
 ## ルール
-1. このページの役割「${pageRole}」は必ず守ってください（固定要素）
-2. 固定要素: ${fixedElements.join(', ')}
-3. これまでの物語の流れ（改変含む）を踏まえて、このページを自然に書き換えてください
-4. ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください
-5. 文章は4〜6行程度にしてください
-6. これまでの物語の流れと矛盾しないようにしてください
-7. キャラクターの現在の状態（見た目・性格の変化）を必ず反映してください
+${rulesSection}
 
 ## これまでの物語
 ${prevContext || 'なし（最初のページ）'}
@@ -181,8 +238,9 @@ export function buildConsistencyCheckPrompt(params: {
   childUtterance?: string
   characterStates?: CharacterState[]
   pageNumber?: number
+  boldnessConfig?: BoldnessConfig
 }): string {
-  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, characterStates, pageNumber } = params
+  const { bookTitle, pageRole, fixedElements, previousPages, modifiedText, childUtterance, characterStates, pageNumber, boldnessConfig } = params
 
   const prevContext = previousPages
     .map((p) => `ページ${p.pageNumber}: ${p.currentText}`)
@@ -194,10 +252,29 @@ export function buildConsistencyCheckPrompt(params: {
 
   const charSection = characterStates ? buildCharacterStatesSection(characterStates) : ''
 
+  // relaxed モードでは確認項目を絞る
+  const isRelaxed = boldnessConfig?.consistencyMode === 'relaxed'
+
+  const fixedElementsSection = (!boldnessConfig || boldnessConfig.fixedElementsMode === 'strict')
+    ? `## このページの固定要素（必ず守るべき）\n${fixedElements.join(', ')}`
+    : boldnessConfig.fixedElementsMode === 'loose'
+    ? `## このページの固定要素（参考程度）\n${fixedElements.join(', ')}`
+    : '## 固定要素\nなし（自由に変更可能）'
+
+  const checkItems = isRelaxed
+    ? `## 確認項目
+1. 物語として成立しているか（文章が子ども向けとして適切か）
+2. 有害な内容が含まれていないか`
+    : `## 確認項目
+1. 固定要素が守られているか
+2. これまでの物語と矛盾していないか
+3. キャラクターの行動に整合性があるか
+4. 子どもの発言の意図が反映されているか
+5. キャラクターの見た目や性格に変化があったか`
+
   return `あなたは子供向け絵本「${bookTitle}」の物語の整合性を確認する編集者です。
 
-## このページの固定要素（必ず守るべき）
-${fixedElements.join(', ')}
+${fixedElementsSection}
 
 ## このページの役割
 ${pageRole}
@@ -209,12 +286,7 @@ ${charSection}${utteranceNote}
 ## 改変後テキスト
 ${modifiedText}
 
-## 確認項目
-1. 固定要素が守られているか
-2. これまでの物語と矛盾していないか
-3. キャラクターの行動に整合性があるか
-4. 子どもの発言の意図が反映されているか
-5. キャラクターの見た目や性格に変化があったか
+${checkItems}
 
 重要: 子どもの発言の意図（例: 登場人物の変更など）は最優先で尊重してください。
 
@@ -266,6 +338,43 @@ COVER COMPOSITION REQUIREMENTS:
 - The overall mood should feel magical and welcoming
 - Portrait orientation (3:4 aspect ratio), vertical composition
 - CRITICAL: Do NOT include any text, letters, words, titles, numbers, or characters in the image. No text of any kind. The title and author name will be overlaid separately.`
+}
+
+/** Story Remix プロンプト: 全ページのテキストをリミックス */
+export function buildStoryRemixPrompt(params: {
+  bookTitle: string
+  remixPrompt: string
+  pages: { pageNumber: number; pageRole?: string; text: string }[]
+}): string {
+  const { bookTitle, remixPrompt, pages } = params
+
+  const pagesSection = pages
+    .map((p) => `ページ${p.pageNumber}${p.pageRole ? `（${p.pageRole}）` : ''}: ${p.text}`)
+    .join('\n')
+
+  return `あなたは子供向け絵本「${bookTitle}」を新しい設定で書き直す作家です。
+
+## ユーザーの設定指示
+「${remixPrompt}」
+
+## 元のストーリー構成
+${pagesSection}
+
+## ルール
+1. 元の物語の「起承転結の流れ」は緩く参考にしてください（完全に変えてもOK）
+2. ユーザーの設定指示を最大限に反映してください
+3. ひらがな中心で、3〜6歳の子どもに伝わる文章にしてください
+4. 各ページ4〜6行程度にしてください
+5. キャラクター名は元の物語のものを使ってください（性格や関係性は自由に変更OK）
+6. 最初のページはタイトルページです。タイトルと短い紹介文を書いてください
+
+## 出力形式
+以下のJSON配列で全ページのテキストを出力してください:
+[
+  {"pageNumber": 1, "text": "..."},
+  {"pageNumber": 2, "text": "..."}
+]
+JSONのみ出力してください。説明や注釈は不要です。`
 }
 
 /** 画像編集プロンプト（改変時） */

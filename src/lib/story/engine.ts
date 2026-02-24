@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { buildModificationPrompt, buildContextRegenerationPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
-import type { StoryPage, Modification, CharacterState } from '@/lib/types'
+import type { StoryPage, Modification, CharacterState, BoldnessConfig } from '@/lib/types'
 
 const TEXT_MODEL = 'gemini-3-flash-preview'
 
@@ -23,12 +23,14 @@ export async function modifyCurrentPage(params: {
   trigger: 'voice' | 'drawing'
   apiKey: string
   characterStates?: CharacterState[]
+  boldnessConfig?: BoldnessConfig
+  remixPrompt?: string
 }): Promise<{
   modifiedText: string
   modification: Modification
   targetPageIndex: number
 }> {
-  const { bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger, apiKey, characterStates } = params
+  const { bookTitle, keyword, childUtterance, currentPageIndex, pages, trigger, apiKey, characterStates, boldnessConfig, remixPrompt } = params
 
   // 現在のページを改変対象とする
   const targetPageIndex = currentPageIndex
@@ -57,6 +59,8 @@ export async function modifyCurrentPage(params: {
     fixedElements,
     previousPages,
     characterStates,
+    boldnessConfig,
+    remixPrompt,
   })
 
   const response = await genai.models.generateContent({
@@ -95,8 +99,10 @@ export async function regeneratePageInContext(params: {
   pages: StoryPage[]
   apiKey: string
   characterStates?: CharacterState[]
+  boldnessConfig?: BoldnessConfig
+  remixPrompt?: string
 }): Promise<{ modifiedText: string; targetPageIndex: number }> {
-  const { bookTitle, currentPageIndex, pages, apiKey, characterStates } = params
+  const { bookTitle, currentPageIndex, pages, apiKey, characterStates, boldnessConfig, remixPrompt } = params
 
   const targetPage = pages[currentPageIndex]
   const pageRole = targetPage.pageRole || `ページ${targetPage.id}の物語`
@@ -119,6 +125,8 @@ export async function regeneratePageInContext(params: {
     fixedElements,
     previousPages,
     characterStates,
+    boldnessConfig,
+    remixPrompt,
   })
 
   const response = await genai.models.generateContent({

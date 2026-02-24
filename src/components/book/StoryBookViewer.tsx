@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookPage } from './BookPage'
 import { DrawingOverlay } from './DrawingOverlay'
+import { StoryRemixOverlay } from '@/components/story/StoryRemixOverlay'
 import { ChevronLeft, ChevronRight, Home, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useStory } from '@/hooks/useStory'
@@ -13,7 +14,8 @@ import { useMusicSession } from '@/hooks/useMusicSession'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { useDrawingInput } from '@/hooks/useDrawingInput'
 import { useSounds } from '@/components/audio/SoundProvider'
-import type { Story } from '@/lib/types'
+import { getBoldnessConfig } from '@/lib/story/boldness'
+import type { Story, StoryPage, ModificationBoldness } from '@/lib/types'
 
 interface StoryBookViewerProps {
   story: Story
@@ -29,6 +31,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const [isFlipping, setIsFlipping] = useState(false)
   const [flipDirection, setFlipDirection] = useState<'forward' | 'backward' | null>(null)
   const [flippedPages, setFlippedPages] = useState<Set<number>>(new Set())
+  const [showRemixOverlay, setShowRemixOverlay] = useState(!readOnly)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const bookRef = useRef<HTMLDivElement>(null)
@@ -51,6 +54,11 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
 
   const syncPageIndex = useStoryStore((s) => s.syncPageIndex)
   const storySessionId = useStoryStore((s) => s.storySessionId)
+  const applyRemix = useStoryStore((s) => s.applyRemix)
+  const setBoldness = useStoryStore((s) => s.setBoldness)
+  const setRemixPrompt = useStoryStore((s) => s.setRemixPrompt)
+  const storeBoldness = useStoryStore((s) => s.boldness)
+  const maxModifications = getBoldnessConfig(storeBoldness).maxModifications
 
   // storeのページデータがあればそちらを使用（改変反映）
   const displayPages = readOnly ? story.pages : (storePages.length > 0 ? storePages : story.pages)
@@ -106,6 +114,16 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
   const handleTextSubmit = useCallback((keyword: string) => {
     submitTextKeyword(keyword)
   }, [submitTextKeyword])
+
+  // Story Remix 完了ハンドラ
+  const handleRemixComplete = useCallback((remixedPages: StoryPage[] | null, boldness: ModificationBoldness, remixPromptText: string | null) => {
+    setBoldness(boldness)
+    if (remixedPages && remixPromptText) {
+      setRemixPrompt(remixPromptText)
+      applyRemix(remixedPages)
+    }
+    setShowRemixOverlay(false)
+  }, [setBoldness, setRemixPrompt, applyRemix])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
@@ -283,6 +301,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
                     isCover={isCover}
                     isLastPage={isPageLastPage}
                     readOnly={readOnly}
+                    maxModifications={maxModifications}
                     pagePhase={isPageActive && !readOnly ? pagePhase : undefined}
                     modificationPhase={isPageActive && !readOnly ? modificationPhase : undefined}
                     commentTimeRemainingMs={commentTimeRemainingMs}
@@ -428,6 +447,16 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
           error={drawingError}
           onRetry={handleDrawingRetry}
           onErrorClose={handleDrawingErrorClose}
+        />
+      )}
+
+      {/* Story Remix Overlay */}
+      {showRemixOverlay && storePages.length > 0 && (
+        <StoryRemixOverlay
+          bookId={bookId || story.id}
+          bookTitle={story.title}
+          pages={storePages}
+          onComplete={handleRemixComplete}
         />
       )}
     </div>

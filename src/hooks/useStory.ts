@@ -118,6 +118,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
     modificationPhase: store.modificationPhase,
     bookId: store.bookId,
     characterStates: store.characterStates,
+    boldness: store.boldness,
+    remixPrompt: store.remixPrompt,
   })
 
   // コメントタイム終了 → ストリーミング改変フロー起動
@@ -155,6 +157,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               pages: lightPages,
               trigger: store.selectedKeyword!.trigger,
               characterStates: store.characterStates,
+              boldnessLevel: store.boldness,
+              remixPrompt: store.remixPrompt || undefined,
               // drawing トリガー用の追加パラメータ
               ...(store.selectedKeyword!.trigger === 'drawing' && store.drawingImageBase64
                 ? {
@@ -283,6 +287,8 @@ export function useStory(bookId?: string, initialPages?: StoryPage[], sessionId?
               currentPageIndex: store.currentPageIndex,
               pages: lightPages,
               characterStates: store.characterStates,
+              boldnessLevel: store.boldness,
+              remixPrompt: store.remixPrompt || undefined,
             }),
             signal: regenController.signal,
           })

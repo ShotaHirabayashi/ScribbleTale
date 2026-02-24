@@ -3,7 +3,8 @@ import { modifyCurrentPage } from '@/lib/story/engine'
 import { orchestrate } from '@/lib/story/orchestrator'
 import { generateImage } from '@/lib/gemini/image-generator'
 import { buildImagePrompt, buildImageEditPrompt } from '@/lib/gemini/prompts'
-import type { StoryPage } from '@/lib/types'
+import { getBoldnessConfig } from '@/lib/story/boldness'
+import type { StoryPage, ModificationBoldness } from '@/lib/types'
 
 /**
  * ストリーミング改変API
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
     // drawing トリガー用
     referenceImageBase64?: string
     originalDescription?: string
+    // 改変レベル
+    boldnessLevel?: ModificationBoldness
+    remixPrompt?: string
   }
 
   try {
@@ -62,7 +66,9 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const { bookId, bookTitle, keyword, childUtterance, currentPageIndex, pages: rawPages, trigger, characterStates, referenceImageBase64, originalDescription } = body
+  const { bookId, bookTitle, keyword, childUtterance, currentPageIndex, pages: rawPages, trigger, characterStates, referenceImageBase64, originalDescription, boldnessLevel, remixPrompt } = body
+
+  const boldnessConfig = boldnessLevel ? getBoldnessConfig(boldnessLevel) : undefined
 
   if (!bookId || !bookTitle || !keyword || currentPageIndex == null || !rawPages || !trigger) {
     const missing = [
@@ -105,6 +111,8 @@ export async function POST(request: NextRequest) {
           trigger,
           apiKey,
           characterStates,
+          boldnessConfig,
+          remixPrompt,
         })
 
         // テキスト結果を即座に送信（orchestrate を待たない）
@@ -145,6 +153,7 @@ export async function POST(request: NextRequest) {
             previousPages,
             apiKey,
             characterStates,
+            boldnessConfig,
           }),
           // 画像生成（並列）
           generateImage(imagePrompt, apiKey, referenceImageBase64).catch((error) => {
