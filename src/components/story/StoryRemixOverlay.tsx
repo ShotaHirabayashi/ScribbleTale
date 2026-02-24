@@ -12,7 +12,7 @@ interface StoryRemixOverlayProps {
 }
 
 const BOLDNESS_OPTIONS: { value: ModificationBoldness; label: string; icon: string; description: string; needsGate: boolean }[] = [
-  { value: 'gentle', label: 'やさしい', icon: '🐣', description: 'もとの おはなしに ちかい', needsGate: true },
+  { value: 'gentle', label: 'やさしい', icon: '🐣', description: 'もとの おはなしに ちかい', needsGate: false },
   { value: 'normal', label: 'ふつう', icon: '⭐', description: 'すこし かわる', needsGate: false },
   { value: 'bold', label: 'だいたん', icon: '🔥', description: 'おおきく かわる', needsGate: true },
 ]
