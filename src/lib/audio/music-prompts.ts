@@ -140,6 +140,71 @@ export const akazukinBgmPrompts: Record<number, MusicPromptConfig> = {
   },
 }
 
+// ── オズのまほうつかい 12ページ分 ──
+
+export const wizardOfOzBgmPrompts: Record<number, MusicPromptConfig> = {
+  // P1: タイトルページ
+  1: {
+    prompts: [{ text: 'magical music box, enchanted fairy tale, sparkling wonder', weight: 1.0 }],
+    generationConfig: { bpm: 76, density: 0.3, brightness: 0.6, temperature: 1.0 },
+  },
+  // P2: ドロシーとトトの日常
+  2: {
+    prompts: [{ text: 'simple country life, prairie wind, gentle banjo, warm sunshine', weight: 1.0 }],
+    generationConfig: { bpm: 84, density: 0.3, brightness: 0.6, temperature: 1.0 },
+  },
+  // P3: 竜巻でオズの国へ
+  3: {
+    prompts: [{ text: 'dramatic tornado, swirling winds, intense strings, chaos', weight: 1.0 }],
+    generationConfig: { bpm: 140, density: 0.7, brightness: 0.4, temperature: 1.2 },
+  },
+  // P4: マンチキンの国・良い魔女
+  4: {
+    prompts: [{ text: 'magical wonderland, sparkling chimes, colorful fantasy, gentle harp', weight: 1.0 }],
+    generationConfig: { bpm: 100, density: 0.4, brightness: 0.8, temperature: 1.0 },
+  },
+  // P5: 黄色いレンガの道
+  5: {
+    prompts: [{ text: 'hopeful journey, yellow brick road, skipping rhythm, bright adventure', weight: 1.0 }],
+    generationConfig: { bpm: 112, density: 0.5, brightness: 0.7, temperature: 1.0 },
+  },
+  // P6: かかしとの出会い
+  6: {
+    prompts: [{ text: 'playful scarecrow dance, clumsy woodwinds, whimsical comedy', weight: 1.0 }],
+    generationConfig: { bpm: 108, density: 0.5, brightness: 0.7, temperature: 1.0 },
+  },
+  // P7: ブリキのきこりとの出会い
+  7: {
+    prompts: [{ text: 'metallic tinkling, heartfelt melody, gentle tears, warm strings', weight: 1.0 }],
+    generationConfig: { bpm: 92, density: 0.4, brightness: 0.6, temperature: 1.0 },
+  },
+  // P8: おくびょうライオンとの出会い
+  8: {
+    prompts: [{ text: 'comical lion, timid strings, nervous but endearing, soft brass', weight: 1.0 }],
+    generationConfig: { bpm: 96, density: 0.4, brightness: 0.5, temperature: 1.0 },
+  },
+  // P9: エメラルドの都に到着
+  9: {
+    prompts: [{ text: 'emerald city grandeur, shimmering crystals, majestic arrival, green sparkle', weight: 1.0 }],
+    generationConfig: { bpm: 104, density: 0.6, brightness: 0.8, temperature: 1.0 },
+  },
+  // P10: 魔法使いとの対面・試練
+  10: {
+    prompts: [{ text: 'mysterious wizard, dramatic organ, imposing presence, deep mystery', weight: 1.0 }],
+    generationConfig: { bpm: 88, density: 0.5, brightness: 0.4, temperature: 1.0 },
+  },
+  // P11: 悪い魔女との対決と勝利
+  11: {
+    prompts: [{ text: 'wicked witch battle, heroic courage, intense clash, triumphant brass', weight: 1.0 }],
+    generationConfig: { bpm: 136, density: 0.8, brightness: 0.6, temperature: 1.2 },
+  },
+  // P12: ハッピーエンド・帰還
+  12: {
+    prompts: [{ text: 'there is no place like home, silver shoes clicking, warm reunion, music box closing', weight: 1.0 }],
+    generationConfig: { bpm: 88, density: 0.4, brightness: 0.8, temperature: 1.0 },
+  },
+}
+
 /** bookIdからBGMプロンプトマップを取得 */
 export function getBgmPrompts(bookId: string): Record<number, MusicPromptConfig> {
   switch (bookId) {
@@ -147,6 +212,8 @@ export function getBgmPrompts(bookId: string): Record<number, MusicPromptConfig>
       return momotaroBgmPrompts
     case 'akazukin':
       return akazukinBgmPrompts
+    case 'wizard-of-oz':
+      return wizardOfOzBgmPrompts
     default:
       return momotaroBgmPrompts
   }

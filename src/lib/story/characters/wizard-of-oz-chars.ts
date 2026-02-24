@@ -1,0 +1,86 @@
+import type { CharacterAgent } from '@/lib/types'
+
+export const wizardOfOzCharacters: CharacterAgent[] = [
+  {
+    id: 'dorothy',
+    name: 'ドロシー',
+    personality: '勇敢で心優しい、おうちが大好き',
+    behaviorPatterns: ['困っている人を助ける', '仲間を信じる', 'おうちに帰りたがる'],
+    reactionStyle: '明るく前向きに反応する、仲間思い',
+    appearsInPages: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    relationships: {
+      toto: '大切な相棒の子犬',
+      scarecrow: '一緒に旅する大切な仲間',
+      tinman: '一緒に旅する大切な仲間',
+      lion: '一緒に旅する大切な仲間',
+      wizard: '願いを叶えてくれるはずの人',
+    },
+  },
+  {
+    id: 'toto',
+    name: 'トト',
+    personality: '元気で忠実、好奇心旺盛',
+    behaviorPatterns: ['ドロシーのそばを離れない', 'しっぽを振る', '怪しいものに吠える'],
+    reactionStyle: '元気に反応する、ドロシーを守ろうとする',
+    appearsInPages: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    relationships: {
+      dorothy: '大好きなご主人',
+    },
+  },
+  {
+    id: 'scarecrow',
+    name: 'かかし',
+    personality: 'のんびりで楽観的、実は賢い',
+    behaviorPatterns: ['ユーモアを交えて話す', '良いアイデアを思いつく', 'ふらふら歩く'],
+    reactionStyle: 'おどけながらも実は的確に反応する',
+    appearsInPages: [6, 7, 8, 9, 10, 11, 12],
+    relationships: {
+      dorothy: '助けてくれた恩人、大切な友達',
+      tinman: '一緒に旅する仲間',
+      lion: '一緒に旅する仲間',
+      wizard: '脳をもらいたい相手',
+    },
+  },
+  {
+    id: 'tinman',
+    name: 'ブリキのきこり',
+    personality: '心がないと言うが一番涙もろい',
+    behaviorPatterns: ['すぐ感動して泣く', '仲間を気遣う', '錆びないように気をつける'],
+    reactionStyle: '感情豊かに涙もろく反応する',
+    appearsInPages: [7, 8, 9, 10, 11, 12],
+    relationships: {
+      dorothy: '助けてくれた恩人、大切な友達',
+      scarecrow: '一緒に旅する仲間',
+      lion: '一緒に旅する仲間',
+      wizard: '心をもらいたい相手',
+    },
+  },
+  {
+    id: 'lion',
+    name: 'おくびょうライオン',
+    personality: 'おくびょうだが仲間思い',
+    behaviorPatterns: ['怖がりながらも仲間を守る', 'びくびくする', 'いざという時に勇気を見せる'],
+    reactionStyle: 'おどおどしながらも頑張って反応する',
+    appearsInPages: [8, 9, 10, 11, 12],
+    relationships: {
+      dorothy: '勇気をくれる友達',
+      scarecrow: '一緒に旅する仲間',
+      tinman: '一緒に旅する仲間',
+      wizard: '勇気をもらいたい相手',
+    },
+  },
+  {
+    id: 'wizard',
+    name: 'まほうつかい',
+    personality: '偉そうだが実は知恵ある人間',
+    behaviorPatterns: ['大げさに振る舞う', '試練を課す', '実は優しい'],
+    reactionStyle: '威厳を保ちつつも本質的に優しく反応する',
+    appearsInPages: [10, 12],
+    relationships: {
+      dorothy: '帰りたいと願う少女',
+      scarecrow: '脳を求める者',
+      tinman: '心を求める者',
+      lion: '勇気を求める者',
+    },
+  },
+]

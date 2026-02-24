@@ -164,7 +164,7 @@ export interface Modification {
 /** ストーリーセッション */
 export interface StorySession {
   id: string
-  bookId: 'momotaro' | 'akazukin'
+  bookId: 'momotaro' | 'akazukin' | 'wizard-of-oz'
   pages: StoryPage[]
   modifications: Modification[]
   characterStates?: CharacterState[]

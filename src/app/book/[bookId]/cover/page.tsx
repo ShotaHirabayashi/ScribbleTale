@@ -1,11 +1,13 @@
 import { CoverCreator } from "@/components/cover/CoverCreator"
 import { akazukinStory } from "@/lib/story/akazukin"
 import { momotaroStory } from "@/lib/story/momotaro"
+import { wizardOfOzStory } from "@/lib/story/wizard-of-oz"
 import { notFound } from "next/navigation"
 
 const stories: Record<string, typeof akazukinStory> = {
   akazukin: akazukinStory,
   momotaro: momotaroStory,
+  'wizard-of-oz': wizardOfOzStory,
 }
 
 export default async function CoverPage({

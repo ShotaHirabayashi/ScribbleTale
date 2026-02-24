@@ -736,10 +736,17 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   },
 
   applyRemix: (remixedPages) => {
-    set((state) => ({
-      pages: remixedPages,
-      isRemixing: false,
+    // 全ページに illustrationLoading フラグを立てる（カバー含む）
+    const pagesWithLoadingFlag = remixedPages.map((page) => ({
+      ...page,
+      illustrationLoading: true,
+      previousIllustration: page.illustration,
     }))
+
+    set({
+      pages: pagesWithLoadingFlag,
+      isRemixing: false,
+    })
 
     // Firestore自動保存
     const { storySessionId } = get()

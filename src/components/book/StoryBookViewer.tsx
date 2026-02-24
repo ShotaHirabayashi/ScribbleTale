@@ -115,15 +115,54 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
     submitTextKeyword(keyword)
   }, [submitTextKeyword])
 
+  // リミックス後の画像バックグラウンド再生成
+  const applyImageUpdate = useStoryStore((s) => s.applyImageUpdate)
+  const handleImageFailure = useStoryStore((s) => s.handleImageFailure)
+
+  const regenerateRemixImages = useCallback(async (remixedPages: StoryPage[]) => {
+    // 全ページ（カバー含む）の画像をバックグラウンドで再生成
+    // 現在表示中のページを優先し、残りは順次生成
+    const generateForPage = async (i: number) => {
+      const page = remixedPages[i]
+      const sceneDescription = page.currentText || page.text
+      try {
+        const response = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sceneDescription }),
+        })
+        if (response.ok) {
+          const result = await response.json()
+          applyImageUpdate(i, `data:${result.mimeType};base64,${result.imageBase64}`)
+        } else {
+          handleImageFailure(i)
+        }
+      } catch {
+        handleImageFailure(i)
+      }
+    }
+
+    // 最初の2ページ（カバー + 1ページ目）を並列で先に生成
+    const firstBatch = remixedPages.slice(0, 2).map((_, i) => generateForPage(i))
+    await Promise.allSettled(firstBatch)
+
+    // 残りのページを順次生成
+    for (let i = 2; i < remixedPages.length; i++) {
+      await generateForPage(i)
+    }
+  }, [applyImageUpdate, handleImageFailure])
+
   // Story Remix 完了ハンドラ
   const handleRemixComplete = useCallback((remixedPages: StoryPage[] | null, boldness: ModificationBoldness, remixPromptText: string | null) => {
     setBoldness(boldness)
     if (remixedPages && remixPromptText) {
       setRemixPrompt(remixPromptText)
       applyRemix(remixedPages)
+      // バックグラウンドで全ページの画像を再生成
+      regenerateRemixImages(remixedPages)
     }
     setShowRemixOverlay(false)
-  }, [setBoldness, setRemixPrompt, applyRemix])
+  }, [setBoldness, setRemixPrompt, applyRemix, regenerateRemixImages])
 
   // 音声入力（readOnlyモードでは無効）
   useVoiceInput({
@@ -182,7 +221,8 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      // drawing / drawingConfirm / confirming フェーズ中はスワイプ無効
+      // RemixOverlay / drawing / drawingConfirm / confirming フェーズ中はスワイプ無効
+      if (showRemixOverlay) return
       if (pagePhase === 'drawing' || pagePhase === 'drawingConfirm' || pagePhase === 'confirming') return
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
       const deltaY = e.changedTouches[0].clientY - touchStartY.current
@@ -191,14 +231,19 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
         else goToPrevPage()
       }
     },
-    [goToNextPage, goToPrevPage, pagePhase]
+    [goToNextPage, goToPrevPage, pagePhase, showRemixOverlay]
   )
 
   // Keyboard handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // RemixOverlay表示中はキーボードナビ無効
+      if (showRemixOverlay) return
       // テキスト入力中・描画確認中はキーボードナビ無効
       if (pagePhase === 'drawingConfirm' || pagePhase === 'commentTime' || pagePhase === 'drawing' || pagePhase === 'confirming') return
+      // input/textarea にフォーカス中はナビ無効（テキスト入力を妨げない）
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
         goToNextPage()
@@ -211,7 +256,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [goToNextPage, goToPrevPage, router, pagePhase])
+  }, [goToNextPage, goToPrevPage, router, pagePhase, showRemixOverlay])
 
   // transitioning フェーズ検知 → CSS flip アニメーション連動
   useEffect(() => {

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
-const validBookIds = ['momotaro', 'akazukin']
+const validBookIds = ['momotaro', 'akazukin', 'wizard-of-oz']
 
 export default function BookEntryPage({ params }: { params: Promise<{ bookId: string }> }) {
   const router = useRouter()

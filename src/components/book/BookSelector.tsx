@@ -24,6 +24,16 @@ const books = [
     pageCount: 12,
     href: "/book/akazukin",
   },
+  {
+    bookId: "wizard-of-oz",
+    title: "オズのまほうつかい",
+    subtitle: "せかいの めいさく",
+    coverImage: "/images/wizard-of-oz/page-01.jpg",
+    accentColor: "#3a8f5c",
+    description: "たつまきで ふしぎな くにへ とばされた ドロシー。なかまと いっしょに まほうつかいに あいに いきます。",
+    pageCount: 12,
+    href: "/book/wizard-of-oz",
+  },
 ]
 
 export function BookSelector() {
@@ -49,7 +59,7 @@ export function BookSelector() {
       </div>
 
       {/* Book grid */}
-      <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-10 md:flex-row md:gap-12 lg:gap-16">
+      <div className="mx-auto flex max-w-5xl flex-col items-center justify-center gap-10 md:flex-row md:gap-12 lg:gap-16">
         {books.map((book, index) => (
           <div
             key={book.bookId}

@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai'
 import { getCharacterReaction } from './characters/agent'
 import { momotaroCharacters } from './characters/momotaro-chars'
 import { akazukinCharacters } from './characters/akazukin-chars'
+import { wizardOfOzCharacters } from './characters/wizard-of-oz-chars'
 import { buildConsistencyCheckPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
 import type { CharacterAgent, CharacterReaction, CharacterState, OrchestratorResult, StoryPage, BoldnessConfig } from '@/lib/types'
@@ -11,6 +12,7 @@ const TEXT_MODEL = 'gemini-3-flash-preview'
 const characterMap: Record<string, CharacterAgent[]> = {
   momotaro: momotaroCharacters,
   akazukin: akazukinCharacters,
+  'wizard-of-oz': wizardOfOzCharacters,
 }
 
 /** キャラクターエージェントを並列呼び出しし、反応を統合 + 整合性チェック */

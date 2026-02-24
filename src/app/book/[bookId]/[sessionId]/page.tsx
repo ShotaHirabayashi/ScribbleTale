@@ -1,6 +1,7 @@
 import { StoryBookViewer } from '@/components/book/StoryBookViewer'
 import { momotaroStory } from '@/lib/story/momotaro'
 import { akazukinStory } from '@/lib/story/akazukin'
+import { wizardOfOzStory } from '@/lib/story/wizard-of-oz'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import type { Story } from '@/lib/types'
@@ -8,6 +9,7 @@ import type { Story } from '@/lib/types'
 const storyMap: Record<string, Story> = {
   momotaro: momotaroStory,
   akazukin: akazukinStory,
+  'wizard-of-oz': wizardOfOzStory,
 }
 
 const metadataMap: Record<string, { title: string; description: string }> = {
@@ -18,6 +20,10 @@ const metadataMap: Record<string, { title: string; description: string }> = {
   akazukin: {
     title: 'あかずきん - ScribbleTale',
     description: 'あかずきんの絵本をよもう',
+  },
+  'wizard-of-oz': {
+    title: 'オズのまほうつかい - ScribbleTale',
+    description: 'オズのまほうつかいの絵本をよもう',
   },
 }
 

@@ -308,7 +308,7 @@ export function StoryRemixOverlay({ bookId, bookTitle, pages, onComplete }: Stor
             {/* 問題表示 */}
             <div className="px-6 pb-2 text-center">
               <p className="font-serif text-sm font-bold text-gray-700">
-                もんだいを といて つづけてね
+                おとなの ひとに きいてね！
               </p>
               <div className="mt-3 rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3">
                 <p className="font-mono text-2xl font-bold text-blue-800">
