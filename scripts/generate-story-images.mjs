@@ -2,7 +2,7 @@
 
 /**
  * 全ページ画像生成スクリプト
- * Gemini 3 Pro Image で桃太郎12枚 + あかずきん12枚 + オズのまほうつかい12枚 = 合計36枚を生成
+ * Gemini 3.1 Flash Image で桃太郎12枚 + あかずきん12枚 + オズのまほうつかい12枚 = 合計36枚を生成
  *
  * Usage: node scripts/generate-story-images.mjs
  */
@@ -16,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 
 // --- 設定 ---
-const MODEL = 'gemini-3-pro-image-preview'
+const MODEL = 'gemini-3.1-flash-image-preview'
 const DELAY_MS = 5000
 const MAX_RETRIES = 3
 

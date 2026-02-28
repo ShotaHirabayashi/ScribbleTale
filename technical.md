@@ -12,7 +12,7 @@
 | Frontend | Next.js 16 App Router + TypeScript |
 | SDK | `@google/genai` v1.42.0+ (旧`@google/generative-ai`は非推奨) |
 | 音声AI | Gemini Live API (クライアント直接WebSocket) |
-| 画像生成 | `gemini-3-pro-image-preview` (サーバーサイドAPI Route) |
+| 画像生成 | `gemini-3.1-flash-image-preview` (サーバーサイドAPI Route) |
 | 画像生成フォールバック | `gemini-2.5-flash-image` (高速フォールバック、サーキットブレーカー制御) |
 | テキスト生成 | `gemini-2.5-flash-preview-05-20` (改変テキスト生成) |
 | 落書き認識 | `gemini-2.5-flash-lite-preview-06-17` (カメラフレーム解析) |
@@ -31,7 +31,7 @@
 | ユースケース | モデル ID | 実行場所 | レイテンシ |
 |-------------|----------|---------|-----------|
 | 音声入力 (Live API) | `gemini-2.5-flash-preview-native-audio-dialog` | クライアントWebSocket | < 1秒 |
-| 画像生成 (プライマリ) | `gemini-3-pro-image-preview` | サーバー API Route | 8-12秒 |
+| 画像生成 (プライマリ) | `gemini-3.1-flash-image-preview` | サーバー API Route | 3-6秒 |
 | 画像生成 (フォールバック) | `gemini-2.5-flash-image` | サーバー API Route | ~4秒 |
 | 落書き認識 | `gemini-2.5-flash-lite-preview-06-17` | サーバー API Route | 0.3-1.0秒 |
 | テキスト生成 (改変) | `gemini-2.5-flash-preview-05-20` | サーバー API Route | 0.5-1.0秒 |
@@ -40,8 +40,8 @@
 | OG画像 | `next/og` (Gemini不使用) | Edge Runtime | ミリ秒 |
 
 ### 画像生成フォールバック戦略
-`gemini-3-pro-image-preview` をプライマリ、`gemini-2.5-flash-image` をフォールバックとして使用。エラー発生時のサーキットブレーカーパターン:
-1. まず `gemini-3-pro-image-preview` で生成を試行（15秒タイムアウト）
+`gemini-3.1-flash-image-preview` をプライマリ、`gemini-2.5-flash-image` をフォールバックとして使用。エラー発生時のサーキットブレーカーパターン:
+1. まず `gemini-3.1-flash-image-preview` で生成を試行（15秒タイムアウト）
 2. エラーまたはタイムアウト時にサーキットブレーカーが発動
 3. サーキットブレーカー発動中（60秒間）は即座に `gemini-2.5-flash-image` を使用
 4. クールダウン後にプライマリモデルを再試行
@@ -71,7 +71,7 @@ ScribbleTale/
 │   │   │       └── opengraph-image.tsx  # OG画像動的生成
 │   │   └── api/
 │   │       ├── generate-image/
-│   │       │   └── route.ts        # 画像生成 (gemini-3-pro-image-preview)
+│   │       │   └── route.ts        # 画像生成 (gemini-3.1-flash-image-preview)
 │   │       ├── edit-image/
 │   │       │   └── route.ts        # 画像編集（改変時）
 │   │       ├── recognize-drawing/
@@ -117,7 +117,7 @@ ScribbleTale/
 │   │   ├── gemini/
 │   │   │   ├── live-session.ts     # Live API WebSocket管理
 │   │   │   ├── music-session.ts    # Lyria RealTime BGMセッション管理
-│   │   │   ├── image-generator.ts  # 画像生成 (gemini-3-pro-image-preview + サーキットブレーカー)
+│   │   │   ├── image-generator.ts  # 画像生成 (gemini-3.1-flash-image-preview + サーキットブレーカー)
 │   │   │   └── prompts.ts          # プロンプトテンプレート（改変/波及再生成/整合性チェック/キャラ反応/画像）
 │   │   ├── audio/
 │   │   │   ├── sound-manager.ts    # Howler.js サウンドマネージャー（SE専用）
@@ -401,7 +401,7 @@ tailwindcss            # CSS フレームワーク (v4.2.0)
 
 ```typescript
 // image-generator.ts の核心
-const PRIMARY_MODEL = 'gemini-3-pro-image-preview'
+const PRIMARY_MODEL = 'gemini-3.1-flash-image-preview'
 const FALLBACK_MODEL = 'gemini-2.5-flash-image'
 
 async function generateImage(prompt: string, apiKey: string, referenceImageBase64?: string) {

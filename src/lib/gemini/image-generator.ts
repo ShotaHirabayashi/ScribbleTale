@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { CHILD_SAFE_SETTINGS } from './safety'
 
-const PRIMARY_MODEL = 'gemini-3-pro-image-preview'
+const PRIMARY_MODEL = 'gemini-3.1-flash-image-preview'
 const FALLBACK_MODEL = 'gemini-2.5-flash-image'
 const PRIMARY_TIMEOUT_MS = 15000
 const FALLBACK_TIMEOUT_MS = 45000
