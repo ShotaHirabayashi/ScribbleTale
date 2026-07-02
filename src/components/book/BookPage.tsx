@@ -211,7 +211,7 @@ export function BookPage({
       {/* readOnly: ボタンなし / 通常: ボタン用スペース確保 */}
       {!readOnly && (
         <>
-          <div className="shrink-0 h-[3.5rem] px-4 sm:px-6 md:px-10">
+          <div className="shrink-0 h-[5.5rem] px-4 sm:px-6 md:px-10">
             {pagePhase === 'readingComplete' && canShowCommentTimeButton && (
               (page.modificationCount ?? 0) >= maxModifications ? (
                 <div className="flex justify-center pt-2 pb-1 animate-in fade-in duration-500">
