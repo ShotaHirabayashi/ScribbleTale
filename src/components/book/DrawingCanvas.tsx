@@ -17,7 +17,11 @@ const COLORS = [
   { name: 'ピンク', value: '#e91e90' },
 ]
 
-const LINE_WIDTH = 5
+const BRUSH_SIZES = [
+  { label: '細', size: 3, icon: '・' },
+  { label: '普通', size: 6, icon: '●' },
+  { label: '太', size: 12, icon: '◉' },
+]
 const ERASER_WIDTH = 20
 
 // 出力画像の最大サイズ（px）- Base64サイズ削減のため
@@ -28,6 +32,7 @@ const JPEG_QUALITY = 0.7
 export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [selectedColor, setSelectedColor] = useState(COLORS[0].value)
+  const [selectedSize, setSelectedSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
   const isDrawingRef = useRef(false)
 
@@ -83,7 +88,7 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
       } else {
         ctx.globalCompositeOperation = 'source-over'
         ctx.strokeStyle = selectedColor
-        ctx.lineWidth = LINE_WIDTH
+        ctx.lineWidth = selectedSize
       }
 
       ctx.lineCap = 'round'
@@ -91,7 +96,7 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
       ctx.beginPath()
       ctx.moveTo(pos.x, pos.y)
     },
-    [selectedColor, isEraser, getPos]
+    [selectedColor, selectedSize, isEraser, getPos]
   )
 
   const handlePointerMove = useCallback(
@@ -219,6 +224,7 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
               }`}
               style={{ backgroundColor: color.value }}
               aria-label={color.name}
+              title={color.name}
             >
               {selectedColor === color.value && !isEraser && (
                 <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] sm:h-5 sm:w-5" />
@@ -243,6 +249,28 @@ export function DrawingCanvas({ onComplete, onCancel }: DrawingCanvasProps) {
           >
             <Trash2 className="h-3.5 w-3.5 text-white sm:h-4 sm:w-4" />
           </button>
+
+          {/* Brush size selection */}
+          <div className="ml-1 flex items-center gap-1 border-l border-white/20 pl-2">
+            {BRUSH_SIZES.map((brush) => (
+              <button
+                key={brush.size}
+                onClick={() => {
+                  setSelectedSize(brush.size)
+                  setIsEraser(false)
+                }}
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs text-white transition-transform ${
+                  selectedSize === brush.size && !isEraser
+                    ? 'scale-110 border-white bg-white/20'
+                    : 'border-white/40 hover:scale-105'
+                }`}
+                aria-label={`ふとさ: ${brush.label}`}
+                title={`ふとさ: ${brush.label}`}
+              >
+                {brush.icon}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Action buttons row */}

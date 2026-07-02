@@ -290,7 +290,7 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
           <span className="hidden sm:inline">もどる</span>
         </button>
         <div className="rounded-full bg-background/80 px-2.5 py-1 font-serif text-xs text-muted-foreground backdrop-blur-sm sm:px-3 sm:py-1.5 sm:text-sm">
-          {currentPage + 1} / {totalPages}
+          {currentPage + 1}ページ
         </div>
       </div>
 
@@ -434,21 +434,29 @@ export function StoryBookViewer({ story, bookId, sessionId, readOnly = false, au
             <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
 
-          {/* Page dots */}
-          <div className="flex items-center gap-1.5" role="tablist" aria-label="ページ">
-            {displayPages.map((_, index) => (
-              <div
-                key={index}
-                role="tab"
-                aria-selected={currentPage === index}
-                aria-label={`ページ ${index + 1}`}
-                className={`h-2.5 rounded-full transition-all duration-300 sm:h-3.5 ${
-                  currentPage === index
-                    ? 'w-6 bg-[var(--storybook-peach)] sm:w-8'
-                    : 'w-2.5 bg-background/50 sm:w-3'
-                }`}
-              />
-            ))}
+          {/* Page stamps */}
+          <div className="flex items-center gap-1" role="tablist" aria-label="ページ">
+            {displayPages.map((_, index) => {
+              const isActive = currentPage === index
+              const isRead = index < currentPage
+              return (
+                <span
+                  key={index}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-label={`ページ ${index + 1}`}
+                  className={`leading-none transition-all duration-300 ${
+                    isActive
+                      ? 'text-lg'
+                      : isRead
+                        ? 'text-sm opacity-80'
+                        : 'text-sm text-foreground/30'
+                  }`}
+                >
+                  {isActive ? '⭐' : isRead ? '✅' : '○'}
+                </span>
+              )
+            })}
           </div>
 
           <button
