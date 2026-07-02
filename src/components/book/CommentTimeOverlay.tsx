@@ -57,11 +57,21 @@ export function CommentTimeOverlay({
         </div>
 
         {/* タイマーバー */}
-        <div className="h-2.5 w-48 overflow-hidden rounded-full bg-background/30 sm:w-56">
-          <div
-            className={`h-full rounded-full transition-all duration-1000 ease-linear ${remainingMs <= 10000 ? 'bg-orange-400 animate-pulse' : 'bg-primary/70'}`}
-            style={{ width: `${(1 - progress) * 100}%` }}
-          />
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-2">
+            <span className="text-base leading-none" aria-hidden="true">
+              ⏳
+            </span>
+            <div className="h-2.5 w-48 overflow-hidden rounded-full bg-background/30 sm:w-56">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ease-linear ${remainingMs <= 10000 ? 'bg-orange-400 animate-pulse' : 'bg-primary/70'}`}
+                style={{ width: `${(1 - progress) * 100}%` }}
+              />
+            </div>
+          </div>
+          {remainingMs <= 10000 && (
+            <span className="animate-bounce text-xs text-orange-400">もうすこし！</span>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
