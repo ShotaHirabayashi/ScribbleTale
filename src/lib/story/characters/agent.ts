@@ -3,7 +3,7 @@ import { buildCharacterReactionPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
 import type { CharacterAgent, CharacterReaction, CharacterState } from '@/lib/types'
 
-const TEXT_MODEL = 'gemini-3-flash-preview'
+const TEXT_MODEL = 'gemini-2.5-flash'
 
 /** キャラクターの反応を生成 */
 export async function getCharacterReaction(
