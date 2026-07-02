@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai'
 import { buildStoryRemixPrompt } from '@/lib/gemini/prompts'
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
 
-const TEXT_MODEL = 'gemini-3-flash-preview'
+const TEXT_MODEL = 'gemini-2.5-flash'
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY

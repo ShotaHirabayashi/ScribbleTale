@@ -3,7 +3,7 @@ import { buildModificationPrompt, buildContextRegenerationPrompt } from '@/lib/g
 import { CHILD_SAFE_SETTINGS } from '@/lib/gemini/safety'
 import type { StoryPage, Modification, CharacterState, BoldnessConfig } from '@/lib/types'
 
-const TEXT_MODEL = 'gemini-3-flash-preview'
+const TEXT_MODEL = 'gemini-2.5-flash'
 
 /**
  * 改変エンジン
