@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { StoryText } from './StoryText'
 import { CommentTimeButton } from './CommentTimeButton'
@@ -11,8 +11,59 @@ import { WaitingExperience } from './WaitingExperience'
 import { DrawingConfirmOverlay } from './DrawingConfirmOverlay'
 import { ConfirmationOverlay } from './ConfirmationOverlay'
 import { soundManager } from '@/lib/audio/sound-manager'
+import { useStoryStore } from '@/stores/story-store'
 import type { StoryPage } from '@/lib/types'
 import type { PagePhase, ModificationPhase } from '@/lib/types'
+
+// ── リワード演出（紙吹雪） ──
+const CONFETTI_COLORS = ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98'] as const
+
+// 丸ごとに位置・色・遅延をランダム化した紙吹雪の設定を生成
+function createConfettiPieces(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    left: `${Math.round(Math.random() * 100)}%`,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    delay: `${Math.round(Math.random() * 600)}ms`,
+  }))
+}
+
+// 画像コンテナ上に降らせる紙吹雪オーバーレイ
+function ConfettiOverlay() {
+  const [pieces] = useState(() => createConfettiPieces(10))
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true">
+      {pieces.map((piece) => (
+        <span
+          key={piece.id}
+          className="animate-confetti-fall absolute top-0 h-3 w-3 rounded-full"
+          style={{
+            left: piece.left,
+            backgroundColor: piece.color,
+            animationDelay: piece.delay,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// 改変完了時に画像上部へ表示するキーワードバナー
+function KeywordBanner({ keyword, fading }: { keyword: string; fading: boolean }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-3 z-30 flex justify-center">
+      <div
+        className={`rounded-full bg-yellow-400/90 px-4 py-2 text-sm font-bold text-yellow-900 shadow-md ${
+          fading
+            ? 'animate-out fade-out duration-500'
+            : 'animate-in slide-in-from-top-4 duration-500'
+        }`}
+      >
+        ✨ {keyword} をいれたね！
+      </div>
+    </div>
+  )
+}
 
 interface BookPageProps {
   page: StoryPage
@@ -87,9 +138,25 @@ export function BookPage({
   // ボタン表示条件
   const canShowCommentTimeButton = onStartCommentTime && onStartDrawing
 
+  // リワード演出用キーワード取得
+  // 「このページに入れたキーワード」に相当する情報はストア上の
+  // selectedKeyword / recognizedKeyword / pendingKeywords に保持されている
+  const rewardKeyword = useStoryStore((state) => {
+    if (state.selectedKeyword?.keyword) return state.selectedKeyword.keyword
+    if (state.recognizedKeyword) return state.recognizedKeyword
+    const last = state.pendingKeywords[state.pendingKeywords.length - 1]
+    return last?.keyword ?? ''
+  })
+
   // シマー表示制御: illustrationLoading解除後に遅延で非表示
   const [showShimmer, setShowShimmer] = useState(false)
   const [showCompletionEffect, setShowCompletionEffect] = useState(false)
+  // キーワードバナー: 表示 → 2秒後フェードアウト開始 → 3秒後非表示
+  const [bannerKeyword, setBannerKeyword] = useState<string>('')
+  const [bannerFading, setBannerFading] = useState(false)
+  // 完了エフェクト発火時の最新キーワードを参照するための ref（依存配列に含めず再実行を防ぐ）
+  const rewardKeywordRef = useRef(rewardKeyword)
+  rewardKeywordRef.current = rewardKeyword
   const wasLoadingRef = useState(false)
   useEffect(() => {
     if (page.illustrationLoading) {
@@ -101,11 +168,30 @@ export function BookPage({
         setShowCompletionEffect(true)
         wasLoadingRef[1](false)
         soundManager.play('modification-complete')
+
+        // キーワードバナー表示（キーワードがある場合のみ）
+        const keyword = rewardKeywordRef.current
+        let bannerFadeTimer: ReturnType<typeof setTimeout> | undefined
+        let bannerHideTimer: ReturnType<typeof setTimeout> | undefined
+        if (keyword) {
+          setBannerKeyword(keyword)
+          setBannerFading(false)
+          // 2秒後にフェードアウト開始
+          bannerFadeTimer = setTimeout(() => setBannerFading(true), 2000)
+          // 合計3秒後に非表示
+          bannerHideTimer = setTimeout(() => {
+            setBannerKeyword('')
+            setBannerFading(false)
+          }, 3000)
+        }
+
         const effectTimer = setTimeout(() => setShowCompletionEffect(false), 1500)
         const shimmerTimer = setTimeout(() => setShowShimmer(false), 1000)
         return () => {
           clearTimeout(effectTimer)
           clearTimeout(shimmerTimer)
+          if (bannerFadeTimer) clearTimeout(bannerFadeTimer)
+          if (bannerHideTimer) clearTimeout(bannerHideTimer)
         }
       }
       const timer = setTimeout(() => setShowShimmer(false), 1000)
@@ -133,6 +219,10 @@ export function BookPage({
               <ImageShimmer previousIllustration={page.previousIllustration} />
             )
           )}
+          {/* 改変完了時のリワード演出: 紙吹雪 */}
+          {showCompletionEffect && <ConfettiOverlay />}
+          {/* 改変完了時のリワード演出: キーワードバナー */}
+          {bannerKeyword && <KeywordBanner keyword={bannerKeyword} fading={bannerFading} />}
         </div>
         <div className="mt-3 shrink-0 text-center sm:mt-4">
           <h2 className="font-serif text-xl tracking-wider text-[var(--storybook-brown)] sm:text-2xl md:text-3xl">
@@ -173,6 +263,10 @@ export function BookPage({
             <ImageShimmer previousIllustration={page.previousIllustration} />
           )
         )}
+        {/* 改変完了時のリワード演出: 紙吹雪 */}
+        {showCompletionEffect && <ConfettiOverlay />}
+        {/* 改変完了時のリワード演出: キーワードバナー */}
+        {bannerKeyword && <KeywordBanner keyword={bannerKeyword} fading={bannerFading} />}
         {isLastPage && (
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--storybook-cream)] via-transparent to-transparent" />
         )}
