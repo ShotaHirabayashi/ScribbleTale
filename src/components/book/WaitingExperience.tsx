@@ -1,74 +1,119 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Star } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
 
 interface WaitingExperienceProps {
   previousIllustration?: string
   keyword?: string
 }
 
-interface StarParticle {
+const MAGIC_COLORS = [
+  '#fcd34d', // 金
+  '#f9a8d4', // ピンク
+  '#7dd3fc', // 水色
+  '#c4b5fd', // 薄紫
+] as const
+
+interface Particle {
   id: number
-  x: number
-  y: number
-  size: number
+  left: number
+  top: number
+  color: string
+  duration: number
   delay: number
-  collected: boolean
 }
 
 /**
- * 画像生成待ち時間のインタラクティブ体験
+ * 魔法の粒子エフェクト
  *
- * ImageShimmerを拡張し、子どもが退屈しないよう星タップゲームを追加。
- * 星をタップするとキラキラエフェクトが出る。
+ * 画像エリア全体に12個の光の粒がランダムに配置され、
+ * float-magic アニメで上下にゆらゆら漂う。
  */
-export function WaitingExperience({ previousIllustration, keyword }: WaitingExperienceProps) {
-  const [stars, setStars] = useState<StarParticle[]>([])
-  const [score, setScore] = useState(0)
-  const [sparkles, setSparkles] = useState<{ id: number; x: number; y: number }[]>([])
-  const nextIdRef = useRef(0)
-  const sparkleIdRef = useRef(0)
-
-  // 定期的に星を生成
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStars((prev) => {
-        // 最大8個まで
-        if (prev.filter((s) => !s.collected).length >= 8) return prev
-        const id = nextIdRef.current++
-        return [
-          ...prev.filter((s) => !s.collected),
-          {
-            id,
-            x: 10 + Math.random() * 80,
-            y: 10 + Math.random() * 70,
-            size: 20 + Math.random() * 16,
-            delay: Math.random() * 0.5,
-            collected: false,
-          },
-        ]
-      })
-    }, 1500)
-
-    return () => clearInterval(interval)
+function MagicParticles() {
+  const particles = useMemo<Particle[]>(() => {
+    return Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      color: MAGIC_COLORS[Math.floor(Math.random() * MAGIC_COLORS.length)],
+      duration: 2 + Math.random() * 2, // 2〜4秒
+      delay: Math.random() * 2, // 0〜2秒
+    }))
   }, [])
 
-  // スパークルを自動削除
-  useEffect(() => {
-    if (sparkles.length === 0) return
-    const timer = setTimeout(() => {
-      setSparkles((prev) => prev.slice(1))
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [sparkles])
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {particles.map((p) => (
+        <span
+          key={p.id}
+          className="absolute h-2 w-2 rounded-full"
+          style={{
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            backgroundColor: p.color,
+            boxShadow: `0 0 8px ${p.color}`,
+            animation: `float-magic ${p.duration}s ease-in-out ${p.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
-  const handleStarTap = useCallback((starId: number, x: number, y: number) => {
-    setStars((prev) =>
-      prev.map((s) => (s.id === starId ? { ...s, collected: true } : s))
-    )
-    setScore((prev) => prev + 1)
-    setSparkles((prev) => [...prev, { id: sparkleIdRef.current++, x, y }])
+interface MagicButtonProps {
+  onClick: () => void
+  tapCount: number
+}
+
+/**
+ * 魔法を強化するタップボタン
+ *
+ * タップするたびに周囲に4方向のスパークルが飛ぶ。
+ */
+function MagicButton({ onClick, tapCount }: MagicButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="まほうをかける"
+      className="relative flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400/80 shadow-lg transition-transform duration-150 active:scale-110"
+    >
+      <span className="text-3xl" aria-hidden>
+        ✨
+      </span>
+
+      {/* タップごとに飛ぶスパークル（key に tapCount を含めて再生成） */}
+      {tapCount > 0 &&
+        [0, 1, 2, 3].map((i) => (
+          <span
+            key={`${tapCount}-${i}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full bg-yellow-200"
+            style={
+              {
+                '--spark-rotate': `${i * 90}deg`,
+                marginLeft: '-5px',
+                marginTop: '-5px',
+                boxShadow: '0 0 6px rgba(253,224,71,0.9)',
+                animation: 'magic-spark-fly 0.6s ease-out forwards',
+              } as React.CSSProperties
+            }
+          />
+        ))}
+    </button>
+  )
+}
+
+/**
+ * 画像生成待ち時間の「魔法をかけている」体験
+ *
+ * 魔法の絵筆が絵を描いているコンセプト。
+ * 光の粒子が漂い、子どもはタップして魔法を強化できる。
+ */
+export function WaitingExperience({ previousIllustration, keyword }: WaitingExperienceProps) {
+  const [tapCount, setTapCount] = useState(0)
+
+  const handleTap = useCallback(() => {
+    setTapCount((prev) => prev + 1)
   }, [])
 
   return (
@@ -79,94 +124,38 @@ export function WaitingExperience({ previousIllustration, keyword }: WaitingExpe
         <img
           src={previousIllustration}
           alt=""
-          className="absolute inset-0 h-full w-full object-contain blur-sm opacity-40"
+          className="absolute inset-0 h-full w-full object-contain opacity-40 blur-sm"
         />
       )}
 
-      {/* シマーグラデーション */}
+      {/* やわらかなクリーム色のベール */}
       <div className="absolute inset-0 bg-[var(--storybook-cream)]/60" />
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
-          animation: 'shimmer 2s ease-in-out infinite',
-        }}
-      />
 
-      {/* 星タップゲーム */}
-      {stars.map((star) =>
-        star.collected ? null : (
-          <button
-            key={star.id}
-            className="absolute animate-pulse cursor-pointer border-none bg-transparent p-0"
-            style={{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              transform: 'translate(-50%, -50%)',
-              animation: `float-sparkle 2s ease-in-out ${star.delay}s infinite`,
-            }}
-            onClick={() => handleStarTap(star.id, star.x, star.y)}
-          >
-            <Star
-              className="text-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.6)]"
-              style={{ width: star.size, height: star.size }}
-              fill="currentColor"
-            />
-          </button>
-        )
-      )}
+      {/* 魔法演出本体 */}
+      <div className="relative flex h-full w-full flex-col items-center justify-center gap-4">
+        {/* 魔法の粒子エフェクト：画像コンテナ全体に漂う光の粒 */}
+        <MagicParticles />
 
-      {/* タップ時のスパークルエフェクト */}
-      {sparkles.map((sp) => (
-        <div
-          key={sp.id}
-          className="pointer-events-none absolute"
-          style={{
-            left: `${sp.x}%`,
-            top: `${sp.y}%`,
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="absolute h-2 w-2 rounded-full bg-yellow-300"
-              style={{
-                animation: `sparkle-burst 0.6s ease-out forwards`,
-                transform: `rotate(${i * 90}deg) translateY(-12px)`,
-                opacity: 0,
-              }}
-            />
-          ))}
+        {/* 中央メッセージ */}
+        <div className="z-10 text-center">
+          <p className="animate-pulse text-lg font-bold text-foreground/80">
+            ✨ まほうで えを かいているよ...
+          </p>
+          {keyword && (
+            <p className="mt-1 text-sm text-foreground/50">「{keyword}」のえ</p>
+          )}
         </div>
-      ))}
 
-      {/* スコアとメッセージ */}
-      <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-1.5">
-        {score > 0 && (
-          <div className="flex items-center gap-1 rounded-full bg-yellow-100/90 px-3 py-1 shadow-sm">
-            <Star className="h-3.5 w-3.5 text-yellow-500" fill="currentColor" />
-            <span className="font-serif text-xs font-bold text-yellow-700">{score}</span>
-          </div>
-        )}
-        <span className="rounded-full bg-background/80 px-4 py-1.5 font-serif text-xs text-[var(--storybook-brown)] shadow-sm sm:text-sm">
-          {keyword ? `「${keyword}」の えを かいているよ...` : 'えを かいているよ...'}
-        </span>
+        {/* タップして魔法を強化するボタン */}
+        <div className="z-10 flex flex-col items-center gap-2">
+          <MagicButton onClick={handleTap} tapCount={tapCount} />
+          {tapCount > 0 && (
+            <p className="text-sm font-bold text-foreground/70">
+              {tapCount}かい まほうをかけたよ！
+            </p>
+          )}
+        </div>
       </div>
-
-      {/* スパークルバーストアニメーション */}
-      <style jsx>{`
-        @keyframes sparkle-burst {
-          0% {
-            opacity: 1;
-            transform: rotate(var(--rotate, 0deg)) translateY(0);
-          }
-          100% {
-            opacity: 0;
-            transform: rotate(var(--rotate, 0deg)) translateY(-24px);
-          }
-        }
-      `}</style>
     </div>
   )
 }
